@@ -1,1 +1,1 @@
-# SoulXGear
+# SoulxGear
