@@ -466,7 +466,7 @@ Crouch proc near
         mov bx,[si+2]
         MOV [di],bx
         add word ptr[di],torsowidth    ;I add the width to starting Y-Coordinate
-        mov bx,torsoheight*1/3   
+        mov bx,torsoheight*1/5   
         
  torso1:
         mov cx,[si+2]         ;Column 
