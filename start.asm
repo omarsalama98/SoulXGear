@@ -54,9 +54,8 @@ MAIN_LOOP:
 		
 		INC AL
 		
-		MOV CX, 65535
-		DELAY:
-			LOOP DELAY
+		CALL DELAY1_4SEC
+		CALL DELAY1_4SEC
 		
 		MOV AH,1
 		INT 16H
@@ -70,7 +69,24 @@ MAIN_LOOP:
 		INT 21H
 MAIN	ENDP
 		
-		; Define procedures here				
+		; Define procedures here	
+
+DELAY1_4SEC   PROC    NEAR
+            ; DELAY BY 1/4 SECOND
+
+            MOV CX, 003H
+DELAY1_4SEC_DELAY_1: 
+            PUSH CX
+            MOV CX, 0D090H
+DELAY1_4SEC_DELAY_2: 
+            DEC CX
+            JNZ DELAY1_4SEC_DELAY_2
+            POP CX
+            DEC CX
+            JNZ DELAY1_4SEC_DELAY_1
+
+            RET
+DELAY1_4SEC   ENDP
 		
 SFIRST		PROC	NEAR
 		; CONSTANTS THROUGH ENTIRE PROC		CX column, DX row, AL color, AH = 0CH, INT 10H
