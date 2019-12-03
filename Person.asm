@@ -15,7 +15,7 @@ eyewidth    EQU 5
 torsowidth  EQU 30
 gazmawidth  EQU 50 
 reglwidth   EQU 30               
-armwidth    EQU 100              
+armwidth    EQU 70              
 neckwidth   EQU 15               ;blue:1          green:2     LightBlue:3   
 headwidth   EQU 40               ;red:4           purple:5    orange:6
                                  ;abyad_wese5:7   Grey:8      blueGamed:9
@@ -57,9 +57,20 @@ MAIN    PROC FAR
         mov bx,ambar 
         call ersem                     
         
-        hlt 
-        mov ah,4ch
-        int 21h 
+		
+		
+        ;	Press any key to exit
+		MOV AH , 0
+		INT 16h
+
+		;Change to Text MODE
+		MOV AH,0          
+		MOV AL,03h
+		INT 10h 
+
+		; return control to operating system
+		MOV AH , 4ch
+		INT 21H
         
 MAIN    ENDP  
 
