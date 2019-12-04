@@ -6,7 +6,7 @@ endY        DW  ?
 startXY2    DW  600,500  
 endY2       DW  ? 
 orientate   DW  1
-stance      DW  1 
+stance      DW  0 
            
 player1  EQU 1
 player2  EQU 2
@@ -49,14 +49,14 @@ MAIN    PROC FAR
         mov bx,105h 
         int 10h
          
-        mov bx,0 
+          
         call ersem 
         
         lea bx,orientate
         mov byte ptr[bx],2 
         
         
-        call ersem                     
+        call wa7edbeyedrab                     
         
 ;	Press any key to exit  
                
@@ -86,7 +86,7 @@ ersem proc near
         ret
          
  sep:               
-        call wa7ed
+        call wa7edbeyedrab
          
         ret 
          
@@ -128,6 +128,50 @@ wa7ed proc near
         
 wa7ed    endp
 
+wa7edbeyedrab proc near
+            
+        mov bx,orientate 
+        cmp bx,player1
+        jz p4  
+        
+        lea si,startXY2 
+        lea di,endy2
+        jmp fev
+        
+   p4:  lea si,startXY 
+        lea di,endy
+         
+        mov bx,[si+2]
+        mov [di],bx  ;ba7ot fih el starting origin w ba3d kda hazawwed tool kol 7aga
+         
+ fev:   mov al,gazmaClr
+        call gazma
+          
+        sub word ptr[si],torsoheight
+        sub word ptr[si],reglheight
+        
+        mov bx,[si+2]           ;;gamda 
+        push bx                 ;;fash5
+        
+        call arm
+         
+        pop bx                  ;;law
+        mov [si+2],bx           ;;etshaloo  
+        
+        add word ptr[si],torsoheight
+        add word ptr[si],reglheight
+        call body
+        call starm                              
+                                            
+        call head
+        mov al,hairClr 
+        call gazma   
+        
+        call EYE
+        ret
+        
+wa7edbeyedrab    endp
+
 wa7edm2ambar proc near
             
         mov bx,orientate 
@@ -154,6 +198,8 @@ wa7edm2ambar proc near
         
         pop bx                  ;;law
         mov [si+2],bx           ;;etshaloo
+            
+        call starm
         call head
         mov al,hairClr 
         call gazma  
@@ -408,7 +454,78 @@ arm proc near
         dec bx
         jnz armlp2
         ret
- arm endp 
+ arm endp  
+
+
+starm proc near 
+        
+        mov bx,[si+2]
+        MOV [di],bx
+        mov bx,orientate
+        cmp bx,player1
+        jz  he
+        sub word ptr[di],armwidth*3/2
+        mov bx,armheight*3/4
+                         
+        jmp armlop         
+                         
+   he:  add word ptr[di],armwidth*3/2
+        mov bx,armheight*3/4
+        
+ armlop:
+        mov cx,[si+2]         ;Column 
+        mov dx,[si]       ;Row
+        mov al,armclr         ;Pixel color 
+        call draw
+        dec word ptr [si]
+        dec bx
+        jnz armlop 
+        
+        add word ptr[si],armheight   
+        
+        mov bx,orientate
+        cmp bx,player1
+        jz  her  
+        
+        sub word ptr[si+2],armwidth*3/2  
+        mov bx,[si+2]
+        MOV [di],bx
+        sub word ptr[di],armwidth/6
+        mov bx,armheight*5/4
+                         
+        jmp boxlop         
+                         
+   her: add word ptr[si+2],armwidth*3/2  
+        mov bx,[si+2]
+        MOV [di],bx
+        add word ptr[di],armwidth/6
+        mov bx,armheight*5/4  
+        
+  boxlop:
+        mov cx,[si+2]         ;Column 
+        mov dx,[si]       ;Row
+        mov al,4         ;Pixel color 
+        call draw
+        dec word ptr [si]
+        dec bx
+        jnz boxlop    
+        
+        add word ptr[si],armheight/4 
+                   
+        mov bx,orientate
+        cmp bx,player1
+        jz  hert  
+        
+        add word ptr[si+2],armwidth*3/2  
+        
+        ret
+        
+ hert:  sub word ptr[si+2],armwidth*3/2     
+                   
+        ret  
+        
+ starm endp
+
 
 head proc near
         
