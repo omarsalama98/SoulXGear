@@ -6,7 +6,7 @@ endY        DW  ?
 startXY2    DW  600,500  
 endY2       DW  ? 
 orientate   DW  1
-ambar       DW  1 
+stance      DW  1 
            
 player1  EQU 1
 player2  EQU 2
@@ -14,7 +14,7 @@ player2  EQU 2
 eyewidth    EQU 5
 torsowidth  EQU 30
 gazmawidth  EQU 50 
-reglwidth   EQU 30               
+reglwidth   EQU 25               
 armwidth    EQU 70              
 neckwidth   EQU 15               ;blue:1          green:2     LightBlue:3   
 headwidth   EQU 40               ;red:4           purple:5    orange:6
@@ -24,18 +24,19 @@ ReglClr     EQU 1                ;                Yellow:14
 TorsoClr    EQU 4
 armClr      EQU 8
 SkinClr     EQU 7 
-HairClr     EQU 2  
+HairClr     EQU 9  
 FPEyeClr    EQU 5
 SPEyeClr    EQU 14
 
-precisionTorso EQU 6 
-eyeheight      EQU 5          
-nosgazmaheight EQU 10
-reglheight     EQU 100 
-torsoheight    EQU 70
-armheight      EQU 10        
-neckheight     EQU 12         
-headheight     EQU 45         
+precisionTorso  EQU 8
+precisionTorso2 EQU 2 
+eyeheight       EQU 5          
+nosgazmaheight  EQU 10
+reglheight      EQU 100 
+torsoheight     EQU 70
+armheight       EQU 10        
+neckheight      EQU 12         
+headheight      EQU 45         
                
         .code
 MAIN    PROC FAR               
@@ -54,23 +55,24 @@ MAIN    PROC FAR
         lea bx,orientate
         mov byte ptr[bx],2 
         
-        mov bx,ambar 
+        
         call ersem                     
         
-		
-		
-        ;	Press any key to exit
+;	Press any key to exit  
+               
 		MOV AH , 0
 		INT 16h
+                       
+;Change to Text MODE   
 
-		;Change to Text MODE
 		MOV AH,0          
 		MOV AL,03h
 		INT 10h 
 
-		; return control to operating system
+; return control to operating system     
+
 		MOV AH , 4ch
-		INT 21H
+		INT 21H 
         
 MAIN    ENDP  
 
@@ -78,7 +80,7 @@ MAIN    ENDP
 ersem proc near
 
         
-        cmp bx,0
+        cmp stance,0
         jz sep
         call wa7edm2ambar 
         ret
@@ -266,11 +268,11 @@ body proc near
         cmp bx,player1
         jz  p
         sub word ptr[di],reglwidth
-        mov bx,torsoheight;*2/3
+        mov bx,torsoheight*3/4
         jmp torso
         
    p:   add word ptr[di],reglwidth
-        mov bx,torsoheight;*2/3   
+        mov bx,torsoheight*3/4 
          
         
  torso:
@@ -301,7 +303,39 @@ body proc near
         inc word ptr [di] 
  
  ta7t:  dec bx
-        jnz torso
+        jnz torso  
+        
+        mov bx,torsoheight*1/4
+        
+ torso3:
+        mov cx,[si+2]         ;Column 
+        mov dx,[si]           ;Row
+                 
+        mov al,torsoClr        ;Pixel color
+        call draw
+        dec word ptr [si]  
+        push bx 
+        mov ah,0
+        mov al,bl
+        mov bl,precisionTorso2
+        div bl 
+        pop bx
+        cmp ah,0
+        jnz ta7t3    
+        push bx
+        mov bx,orientate
+        cmp bx,player1
+        jz tri  
+        pop bx
+        inc word ptr [di]  
+        jmp ta7t3
+  
+      
+  tri:    pop bx
+        dec word ptr [di] 
+ 
+ ta7t3:  dec bx
+        jnz torso3
                     
                     
         
@@ -533,7 +567,7 @@ Crouch proc near
         mov bx,[si+2]
         MOV [di],bx
         sub word ptr[di],torsowidth    ;I add the width to starting Y-Coordinate
-        mov bx,torsoheight*3/4 
+        mov bx,torsoheight*2/3 
         jmp torso2
   
  ji:    pop bx
@@ -547,40 +581,72 @@ Crouch proc near
         mov bx,[si+2]
         MOV [di],bx
         add word ptr[di],torsowidth    ;I add the width to starting Y-Coordinate
-        mov bx,torsoheight*3/4   
+        mov bx,torsoheight*2/3   
         
 
- torso2:
+  torso2:
         mov cx,[si+2]         ;Column 
-        mov dx,[si]       ;Row
-        
-        mov al,torsoClr
+        mov dx,[si]           ;Row
+                 
+        mov al,torsoClr        ;Pixel color
         call draw
-        dec word ptr [si]
+        dec word ptr [si]  
         push bx 
         mov ah,0
         mov al,bl
-        mov bl,precisionTorso-2
+        mov bl,precisionTorso
         div bl 
         pop bx
         cmp ah,0
-        jnz ta7t2   
-        
+        jnz ta7t2    
         push bx
         mov bx,orientate
         cmp bx,player1
-        jz z  
+        jz fab  
         pop bx
         dec word ptr [di]  
         jmp ta7t2
   
-  z:    
-        pop bx
-        inc word ptr [di]
+      
+  fab:  pop bx
+        inc word ptr [di] 
+ 
  ta7t2: dec bx
-        jnz torso2 
-                                     
-        ret         
+        jnz torso2  
+        
+        mov bx,torsoheight*1/4
+        
+ torso4:
+        mov cx,[si+2]         ;Column 
+        mov dx,[si]           ;Row
+                 
+        mov al,torsoClr        ;Pixel color
+        call draw
+        dec word ptr [si]  
+        push bx 
+        mov ah,0
+        mov al,bl
+        mov bl,precisionTorso2
+        div bl 
+        pop bx
+        cmp ah,0
+        jnz ta7t4    
+        push bx
+        mov bx,orientate
+        cmp bx,player1
+        jz trid  
+        pop bx
+        inc word ptr [di]  
+        jmp ta7t4
+  
+      
+  trid: pop bx
+        dec word ptr [di] 
+ 
+ ta7t4: dec bx
+        jnz torso4
+        
+        ret       
         
 crouch endp
            
