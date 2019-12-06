@@ -45,9 +45,17 @@ MAIN    PROC FAR
         MOV AX,@DATA
         MOV DS,AX    
                               ;ba5od fel SI starting X,Y w fel DI el end(betkoon '?' ) 
-                              
                               ;ay bx thickness bta3et el 7aga elly btetresem 
-        mov ax,4f02h
+                              ;Regardless of the function Ersem
+			      ;There are 5 functions to draw the fighter
+			      ;1-Wa7ed(normal not doing anything)
+			      ;2-Wa7edm2ambar(Crouching)
+			      ;3-Wa7edbeyedrab(Punching straight infront of him)
+			      ;4-Wa7edbeyedrabfo2(Punching upwards)
+			      ;5-Wa7edbeykick(Kicking in a right angle way)
+			      
+
+	mov ax,4f02h
         mov bx,105h 
         int 10h
          
@@ -286,7 +294,6 @@ wa7edm2ambar proc near
         pop bx                  ;;law
         mov [si+2],bx           ;;etshaloo
             
-        call starm
         call head
         mov al,hairClr 
         call gazma  
