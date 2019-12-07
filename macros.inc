@@ -34,7 +34,8 @@ DRAW_P1 MACRO IN_XY, IN_ST
 	MOV word ptr[startXY][2], AX
 	
 	MOV orientate, player1
-	MOV stance, IN_ST
+	MOV AX, IN_ST
+	MOV stance, AX
 	CALL ersem
 
 	POPA
@@ -50,7 +51,8 @@ PUSHA
 	MOV word ptr[startXY2][2], AX
 	
 	MOV orientate, player2
-	MOV stance, IN_ST
+	MOV AX, IN_ST
+	MOV stance, AX
 	CALL ersem
 
 	POPA
