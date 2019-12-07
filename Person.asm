@@ -1,26 +1,27 @@
         .MODEL Large
         .STACK 64
         .DATA
-startXY     DW  600,80
+startXY     DW  600,270
 endY        DW  ?
-startXY2    DW  600,500  
-endY2       DW  ? 
-orientate   DW  1
-stance      DW  0 
-           
+startXY2    DW  600,500                    ;blue:1          green:2     LightBlue:3 
+endY2       DW  ?                          ;red:4           purple:5    orange:6    
+orientate   DW  1                          ;abyad_wese5:7   Grey:8      blueGamed:9 
+stance      DW  0                          ;lightGreen:10   Labany:11               
+                                           ;                Yellow:14               
 player1  EQU 1
 player2  EQU 2
 
-eyewidth    EQU 5
-torsowidth  EQU 30
-gazmawidth  EQU 50 
-reglwidth   EQU 25               
-armwidth    EQU 70              
-neckwidth   EQU 15               ;blue:1          green:2     LightBlue:3   
-headwidth   EQU 40               ;red:4           purple:5    orange:6
-                                 ;abyad_wese5:7   Grey:8      blueGamed:9
-gazmaClr    EQU 6                ;lightGreen:10   Labany:11
-ReglClr     EQU 1                ;                Yellow:14
+eyewidth          EQU 5
+torsowidth        EQU 30
+gazmawidth        EQU 50 
+reglwidth         EQU 22               
+armwidth          EQU 70
+armwidthpunchfo2  EQU 90        ;zawwed hena 3shan el punch fo2 bas elly tetzabbat    
+neckwidth         EQU 15                 
+headwidth         EQU 40               
+                                       
+gazmaClr    EQU 6                      
+ReglClr     EQU 1                      
 TorsoClr    EQU 4
 armClr      EQU 8
 SkinClr     EQU 7 
@@ -32,7 +33,7 @@ precisionTorso  EQU 8
 precisionTorso2 EQU 2 
 eyeheight       EQU 5          
 nosgazmaheight  EQU 10
-kickreglheight  EQU 130 
+kickreglheight  EQU 120 
 reglheight      EQU 100 
 torsoheight     EQU 70
 armheight       EQU 10        
@@ -45,17 +46,9 @@ MAIN    PROC FAR
         MOV AX,@DATA
         MOV DS,AX    
                               ;ba5od fel SI starting X,Y w fel DI el end(betkoon '?' ) 
+                              
                               ;ay bx thickness bta3et el 7aga elly btetresem 
-                              ;Regardless of the function Ersem
-			      ;There are 5 functions to draw the fighter
-			      ;1-Wa7ed(normal not doing anything)
-			      ;2-Wa7edm2ambar(Crouching)
-			      ;3-Wa7edbeyedrab(Punching straight infront of him)
-			      ;4-Wa7edbeyedrabfo2(Punching upwards)
-			      ;5-Wa7edbeykick(Kicking in a right angle way)
-			      
-
-	mov ax,4f02h
+        mov ax,4f02h
         mov bx,105h 
         int 10h
          
@@ -66,7 +59,15 @@ MAIN    PROC FAR
         mov byte ptr[bx],2 
         
         
-        call wa7edbeykick                    
+        call wa7edbeyedrabfo2
+        
+        lea si,startxy
+        mov word ptr[si],280
+        mov word ptr[si+2],600
+        call head
+        mov al,hairClr 
+        call gazma 
+        call EYE                    
         
 ;	Press any key to exit  
                
@@ -97,6 +98,8 @@ ersem proc near
          
  sep:               
         call wa7edbeykick
+        
+        
          
         ret 
          
@@ -286,14 +289,14 @@ wa7edm2ambar proc near
  den:   mov al,gazmaClr
         call gazma
         call crouch
-        mov bx,[si+2]           ;;gamda 
-        push bx                 ;;fash5
+        ;mov bx,[si+2]           ;;gamda 
+        ;push bx                 ;;fash5
         
         call arm 
         
-        pop bx                  ;;law
-        mov [si+2],bx           ;;etshaloo
-            
+        ;pop bx                  ;;law
+        ;mov [si+2],bx           ;;etshaloo
+
         call head
         mov al,hairClr 
         call gazma  
@@ -784,12 +787,12 @@ starmfo2 proc near
         cmp bx,player1
         jz  hew
         sub word ptr[di],armheight*2
-        mov bx,armwidth/3
+        mov bx,armwidthpunchfo2/3
                          
         jmp armlopy         
                          
    hew: add word ptr[di],armheight*2
-        mov bx,armwidth/3
+        mov bx,armwidthpunchfo2/3
         
  armlopy:
         mov cx,[si+2]         ;Column 
