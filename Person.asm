@@ -3,22 +3,27 @@
         .DATA
 startXY     DW  600,270
 endY        DW  ?
-startXY2    DW  600,500                    ;blue:1          green:2     LightBlue:3 
-endY2       DW  ?                          ;red:4           purple:5    orange:6    
-orientate   DW  1                          ;abyad_wese5:7   Grey:8      blueGamed:9 
-stance      DW  0                          ;lightGreen:10   Labany:11               
-                                           ;                Yellow:14               
-player1  EQU 1
-player2  EQU 2
-
-eyewidth          EQU 5
-torsowidth        EQU 30
-gazmawidth        EQU 50 
-reglwidth         EQU 22               
-armwidth          EQU 70
+startXY2    DW  600,500                   
+endY2       DW  ?                         
+orientate   DW  1                         
+stance      DW  0                         
+Emsa7       DW  0         ;Variable to clear player                
+                                          
+player1  EQU 1                             ;blue:1          green:2     LightBlue:3    
+player2  EQU 2                             ;red:4           purple:5    orange:6       
+                                           ;abyad_wese5:7   Grey:8      blueGamed:9    
+eyewidth          EQU 5                    ;lightGreen:10   Labany:11                  
+torsowidth        EQU 25                   ;                Yellow:14                  
+gazmawidth        EQU 50                                                               
+reglwidth         EQU 22
+armgamboowidth    EQU 90        ;Widths are generally the length of the body parts   
+armwidth          EQU 80        ;But they were called this way as everything was sideways
+armwidthpunch     EQU 110
 armwidthpunchfo2  EQU 90        ;zawwed hena 3shan el punch fo2 bas elly tetzabbat    
 neckwidth         EQU 15                 
-headwidth         EQU 40               
+headwidth         EQU 40
+fingerwidth       EQU 3 
+boxwidth          EQU 22
                                        
 gazmaClr    EQU 6                      
 ReglClr     EQU 1                      
@@ -39,6 +44,7 @@ torsoheight     EQU 70
 armheight       EQU 10        
 neckheight      EQU 12         
 headheight      EQU 45
+knucklesheight  EQU 4
          
                
         .code
@@ -59,15 +65,9 @@ MAIN    PROC FAR
         mov byte ptr[bx],2 
         
         
-        call wa7edbeyedrabfo2
+        call wa7edm2ambar
         
-        lea si,startxy
-        mov word ptr[si],280
-        mov word ptr[si+2],600
-        call head
-        mov al,hairClr 
-        call gazma 
-        call EYE                    
+                           
         
 ;	Press any key to exit  
                
@@ -97,13 +97,25 @@ ersem proc near
         ret
          
  sep:               
-        call wa7edbeykick
+        call wa7ededogambo
         
         
          
         ret 
          
-ersem endp    
+ersem endp 
+
+ras proc near
+    
+        lea si,startxy
+        mov word ptr[si],280
+        mov word ptr[si+2],600      ;ras tayra malhash lazma
+        call head
+        mov al,hairClr 
+        call gazma 
+        call EYE 
+     ret
+ras endp       
 
 wa7ed proc near
             
@@ -121,7 +133,14 @@ wa7ed proc near
         mov bx,[si+2]
         mov [di],bx  ;ba7ot fih el starting origin w ba3d kda hazawwed tool kol 7aga
          
- fen:   mov al,gazmaClr
+ fen:   mov bx,emsa7 
+        cmp bx,1
+        jz tq4  
+        mov al,gazmaclr
+        jmp eqi
+   tq4: mov al,0 
+    
+   eqi:
         call gazma
         call body
         
@@ -134,12 +153,72 @@ wa7ed proc near
         mov [si+2],bx           ;;etshaloo 
         
         call head
-        mov al,hairClr 
+        mov bx,emsa7 
+        cmp bx,1
+        jz p69  
+        mov al,hairclr
         call gazma 
         call EYE
         ret
         
-wa7ed    endp    
+   p69: mov al,0 
+   
+        call gazma 
+        call EYE
+        ret
+        
+wa7ed    endp
+
+
+wa7ededogambo proc near
+            
+        mov bx,orientate 
+        cmp bx,player1
+        jz pot  
+        
+        lea si,startXY2 
+        lea di,endy2
+        jmp jen
+        
+   pot: lea si,startXY 
+        lea di,endy
+         
+        mov bx,[si+2]
+        mov [di],bx  ;ba7ot fih el starting origin w ba3d kda hazawwed tool kol 7aga
+         
+ jen:   mov bx,emsa7 
+        cmp bx,1
+        jz tu4  
+        mov al,gazmaclr
+        jmp eqli
+   tu4: mov al,0 
+    
+   eqli:
+        call gazma
+        call body
+                
+        push [si+2]          ;;gamda fash5
+        
+        call armgamboo 
+        
+        pop [si+2]           ;;law etshaloo 
+        
+        call head
+        mov bx,emsa7 
+        cmp bx,1
+        jz p09  
+        mov al,hairclr
+        call gazma 
+        call EYE
+        ret
+        
+   p09: mov al,0 
+   
+        call gazma 
+        call EYE
+        ret
+        
+wa7ededogambo    endp
 
 wa7edbeykick proc near
             
@@ -157,21 +236,36 @@ wa7edbeykick proc near
         mov bx,[si+2]
         mov [di],bx  ;ba7ot fih el starting origin w ba3d kda hazawwed tool kol 7aga
          
- fen2:  mov al,gazmaClr
+ fen2:  mov bx,emsa7 
+        cmp bx,1
+        jz wt4  
+        mov al,gazmaclr
+        jmp wti
+   wt4: mov al,0 
+    
+   wti:
         call gazma
         call body
         call kick  
         
-        mov bx,[si+2]           
-        push bx                 
+        push [si+2]         
         
-        call arm 
+        call arm
         
-        pop bx                  
-        mov [si+2],bx            
+        pop [si+2]                   
         
-        call head
-        mov al,hairClr 
+        call head 
+        
+        mov bx,emsa7 
+        cmp bx,1
+        jz p0  
+        mov al,hairclr
+        call gazma 
+        call EYE
+        ret
+        
+   p0:  mov al,0 
+   
         call gazma 
         call EYE
         ret
@@ -194,29 +288,42 @@ wa7edbeyedrab proc near
         mov bx,[si+2]
         mov [di],bx  ;ba7ot fih el starting origin w ba3d kda hazawwed tool kol 7aga
          
- fev:   mov al,gazmaClr
-        call gazma
+ fev:   mov bx,emsa7 
+        cmp bx,1
+        jz p58  
+        mov al,gazmaclr
+        jmp col
+   p58: mov al,0 
+   
+  col:  call gazma
           
         sub word ptr[si],torsoheight
         sub word ptr[si],reglheight
         
-        mov bx,[si+2]           ;;gamda 
-        push bx                 ;;fash5
+        push [si+2]          ;;gamda fash5
         
         call arm
-         
-        pop bx                  ;;law
-        mov [si+2],bx           ;;etshaloo  
+        
+        pop [si+2]           ;;law etshaloo   
         
         add word ptr[si],torsoheight
         add word ptr[si],reglheight
         call body
         call starm                              
                                             
-        call head
-        mov al,hairClr 
-        call gazma   
+        call head 
         
+        mov bx,emsa7 
+        cmp bx,1
+        jz p9  
+        mov al,hairclr
+        call gazma 
+        call EYE
+        ret
+        
+   p9:  mov al,0 
+   
+        call gazma 
         call EYE
         ret
         
@@ -238,19 +345,24 @@ wa7edbeyedrabfo2 proc near
         mov bx,[si+2]
         mov [di],bx  ;ba7ot fih el starting origin w ba3d kda hazawwed tool kol 7aga
          
- feq:   mov al,gazmaClr
+ feq:   mov bx,emsa7 
+        cmp bx,1
+        jz wr4  
+        mov al,gazmaclr
+        jmp wri
+   wr4: mov al,0 
+    
+   wri:
         call gazma
           
         sub word ptr[si],torsoheight
         sub word ptr[si],reglheight
         
-        mov bx,[si+2]           
-        push bx                 
+        push [si+2]         
         
-        call arm
-         
-        pop bx                  
-        mov [si+2],bx            
+        call arm 
+        
+        pop [si+2]                    
         
         add word ptr[si],torsoheight
         add word ptr[si],reglheight
@@ -258,10 +370,22 @@ wa7edbeyedrabfo2 proc near
 
         call head          
            
-        mov al,hairClr 
-        call gazma   
-        
+        mov bx,emsa7 
+        cmp bx,1
+        jz p97  
+        mov al,hairclr
+        call gazma 
         call EYE 
+        
+        add word ptr[si],headheight+neckheight 
+        
+        call starmfo2
+        ret
+        
+   p97: mov al,0 
+   
+        call gazma 
+        call EYE
         
         add word ptr[si],headheight+neckheight 
         
@@ -286,20 +410,36 @@ wa7edm2ambar proc near
         mov bx,[si+2]
         mov [di],bx  ;ba7ot fih el starting origin w ba3d kda hazawwed tool kol 7aga
          
- den:   mov al,gazmaClr
+ den:   mov bx,emsa7 
+        cmp bx,1
+        jz weq  
+        mov al,gazmaclr
+        jmp wati
+   weq: mov al,0 
+    
+   wati:
         call gazma
-        call crouch
-        ;mov bx,[si+2]           ;;gamda 
-        ;push bx                 ;;fash5
+        call crouch 
+        
+        push [si+2]          ;;gamda fash5
         
         call arm 
         
-        ;pop bx                  ;;law
-        ;mov [si+2],bx           ;;etshaloo
+        pop [si+2]           ;;law etshaloo 
 
-        call head
-        mov al,hairClr 
-        call gazma  
+        call head  
+        
+        mov bx,emsa7 
+        cmp bx,1
+        jz p93  
+        mov al,hairclr
+        call gazma 
+        call EYE
+        ret
+        
+   p93: mov al,0 
+   
+        call gazma 
         call EYE
         ret
         
@@ -383,8 +523,14 @@ gazma_ma2looba proc near
         push [si]
         push [si+2]     
         
+        mov bx,emsa7 
+        cmp bx,1
+        jz p54  
         mov al,gazmaclr
-        
+        jmp ki
+   p54: mov al,0 
+    
+   ki: 
         add word ptr[si],reglwidth  
         
         mov bx,orientate
@@ -491,10 +637,18 @@ body proc near
  regl:
         mov cx,[si+2]         ;Column 
         mov dx,[si]       ;Row        
-        
-        mov al,reglClr         ;Pixel color 
+        push bx
+        mov bx,emsa7 
+        cmp bx,1
+        jz p57  
+        mov al,reglclr
+        jmp poi
+   p57: mov al,0 
+    
+   poi:
         call draw
         
+        pop bx
         dec word ptr [si] 
         dec bx
         jnz regl
@@ -515,10 +669,19 @@ body proc near
  torso:
         mov cx,[si+2]         ;Column 
         mov dx,[si]           ;Row
-                 
-        mov al,torsoClr        ;Pixel color
+        
+        push bx         
+        mov bx,emsa7 
+        cmp bx,1
+        jz p5h  
+        mov al,torsoclr
+        jmp kit
+   p5h: mov al,0 
+    
+   kit:
         call draw
-        dec word ptr [si]  
+        dec word ptr [si]
+        pop bx  
         push bx 
         mov ah,0
         mov al,bl
@@ -547,9 +710,17 @@ body proc near
  torso3:
         mov cx,[si+2]         ;Column 
         mov dx,[si]           ;Row
-                 
-        mov al,torsoClr        ;Pixel color
-        call draw
+        push bx         
+        mov bx,emsa7 
+        cmp bx,1
+        jz p52  
+        mov al,torsoclr
+        jmp kiw
+   p52: mov al,0 
+    
+   kiw:
+        call draw 
+        pop bx
         dec word ptr [si]  
         push bx 
         mov ah,0
@@ -581,6 +752,14 @@ body proc near
 
 arm proc near 
         
+        mov bx,emsa7 
+        cmp bx,1
+        jz p5K  
+        mov al,armclr
+        jmp kip
+   p5K: mov al,0 
+    
+   kip:
         mov bx,[si+2]
         MOV [di],bx
         mov bx,orientate
@@ -597,7 +776,7 @@ arm proc near
  armlp:
         mov cx,[si+2]         ;Column 
         mov dx,[si]       ;Row
-        mov al,armClr         ;Pixel color 
+         
         call draw
         inc word ptr [si]
         push bx
@@ -624,7 +803,7 @@ arm proc near
  armlp2:
         mov cx,[si+2]         ;Column 
         mov dx,[si]       ;Row
-        mov al,armClr         ;Pixel color 
+        
         call draw
         dec word ptr [si]
         push bx
@@ -647,71 +826,133 @@ arm proc near
  arm endp  
 
 
-starm proc near 
+starm proc near  
         
+        sub word ptr[si],armheight*3/4
+        push [si]
+        add word ptr[si],armheight*3/4
+        push [si+2]  
+        
+        mov bx,emsa7 
+        cmp bx,1
+        jz i54  
+        mov al,armclr
+        jmp kr
+   i54: mov al,0 
+    
+   kr:
         mov bx,[si+2]
-        MOV [di],bx
+        MOV [di],bx 
         mov bx,orientate
         cmp bx,player1
         jz  he
-        sub word ptr[di],armwidth*3/2
+        sub word ptr[di],armwidthpunch
         mov bx,armheight*3/4
                          
         jmp armlop         
                          
-   he:  add word ptr[di],armwidth*3/2
+   he:  add word ptr[di],armwidthpunch
         mov bx,armheight*3/4
         
  armlop:
         mov cx,[si+2]         ;Column 
         mov dx,[si]       ;Row
-        mov al,armclr         ;Pixel color 
+        
         call draw
         dec word ptr [si]
         dec bx
         jnz armlop 
         
-        add word ptr[si],armheight   
+        add word ptr[si],armheight*3/4   
         
         mov bx,orientate
         cmp bx,player1
-        jz  her  
+        jz  her                                       ;To draw box
         
-        sub word ptr[si+2],armwidth*3/2  
+        sub word ptr[si+2],armwidthpunch-boxwidth/2  
         mov bx,[si+2]
         MOV [di],bx
-        sub word ptr[di],armwidth/6
-        mov bx,armheight*5/4
+        sub word ptr[di],boxwidth
+        mov bx,armheight*3/4+knucklesheight              
+        jmp boxlop1         
                          
-        jmp boxlop         
-                         
-   her: add word ptr[si+2],armwidth*3/2  
+   her: add word ptr[si+2],armwidthpunch-boxwidth/2  
         mov bx,[si+2]
         MOV [di],bx
-        add word ptr[di],armwidth/6
-        mov bx,armheight*5/4  
+        add word ptr[di],boxwidth
+        mov bx,armheight*3/4+knucklesheight  
         
-  boxlop:
+  boxlop1:
         mov cx,[si+2]         ;Column 
-        mov dx,[si]       ;Row
-        mov al,4         ;Pixel color 
-        call draw
-        dec word ptr [si]
-        dec bx
-        jnz boxlop    
+        mov dx,[si]           ;Row
         
-        add word ptr[si],armheight/4 
-                   
+        call draw
+        dec word ptr [si] 
+        push bx
         mov bx,orientate
         cmp bx,player1
-        jz  hert  
+        jz  herg  
+        dec word ptr[si+2] 
+        jmp ddt
         
-        add word ptr[si+2],armwidth*3/2  
+ herg:  inc word ptr[si+2]
+ ddt:   pop bx
+        dec bx
+        jnz boxlop1
+            
+        add word ptr[si],knucklesheight              ;to get to normal arm height
         
-        ret
+        add word ptr[si],armheight*3/4+fingerwidth   ;to get to fingers below
         
- hert:  sub word ptr[si+2],armwidth*3/2     
-                   
+        mov bx,[di]
+        mov [si+2],bx
+         
+        mov bx,orientate
+        cmp bx,player1
+        jz  herw  
+        add word ptr[si+2],fingerwidth*2 
+        jmp reyo 
+        
+ herw:  sub word ptr[si+2],fingerwidth*2
+  
+        
+ reyo:  mov bx,fingerwidth
+                           
+        
+  boxlop2:
+        mov cx,[si+2]         ;Column 
+        mov dx,[si]           ;Row
+        
+        call draw
+        dec word ptr [si] 
+        
+        dec bx
+        jnz boxlop2 
+       
+        mov bx,orientate
+        cmp bx,player1
+        jz  herq  
+        sub word ptr[si+2],fingerwidth 
+        jmp reyr                              
+        
+ herq:  add word ptr[si+2],fingerwidth
+  
+        
+ reyr:  mov bx,armheight*5/4-fingerwidth
+        
+ boxlop3:
+        mov cx,[si+2]         ;Column 
+        mov dx,[si]           ;Row
+        
+        call draw
+        dec word ptr [si] 
+        
+        dec bx
+        jnz boxlop3
+                       
+        pop [si+2]
+        pop [si]
+                 
         ret  
         
  starm endp
@@ -721,7 +962,15 @@ starm proc near
         
         push word ptr[si]
         add word ptr[si],torsoheight+reglwidth
-           
+        
+        mov bx,emsa7 
+        cmp bx,1
+        jz t54  
+        mov al,reglclr
+        jmp ti
+   t54: mov al,0 
+    
+   ti:   
         mov bx,[si+2]
         MOV [di],bx
         mov bx,orientate
@@ -739,7 +988,7 @@ starm proc near
  
         mov cx,[si+2]         ;Column 
         mov dx,[si]           ;Row
-        mov al,reglclr        ;Pixel color 
+        
         call draw
         dec word ptr [si]
        
@@ -754,8 +1003,18 @@ starm proc near
   Kick Endp      
 
 
-starmfo2 proc near  
+starmfo2 proc near      
+        
+        push [si]
+        push [si+2]
+        mov bx,emsa7 
+        cmp bx,1
+        jz q54  
+        mov al,armclr
+        jmp qi
+   q54: mov al,0 
     
+   qi:
         mov bx,word ptr[si+2]                
         mov word ptr[di],bx  
                 
@@ -768,18 +1027,18 @@ starmfo2 proc near
    heo: add word ptr[di],neckwidth
                             
    fre:  
-        mov bx,armheight/2 
+        mov bx,armheight*3/4 
         
   ketfloop:
         mov cx,[si+2]      ;Column 
         mov dx,[si]        ;Row
-        mov al,armclr      ;Pixel color 
+        
         call draw
         dec word ptr [si]
         dec bx
         jnz ketfloop
         
-        add word ptr[si],armheight/2
+        add word ptr[si],armheight*3/4
                   
         mov bx,[si+2]
         MOV [di],bx
@@ -797,7 +1056,7 @@ starmfo2 proc near
  armlopy:
         mov cx,[si+2]         ;Column 
         mov dx,[si]       ;Row
-        mov al,armClr         ;Pixel color 
+        
         call draw
         dec word ptr [si]
         push bx
@@ -823,55 +1082,91 @@ starmfo2 proc near
                 
         mov bx,orientate
         cmp bx,player1
-        jz  hep
-        sub word ptr[di],neckwidth         
-        jmp frt         
+        jz  hee                                       ;To draw box
+ 
+        mov bx,[si+2]
+        MOV [di],bx
+        sub word ptr[di],boxwidth
+        mov bx,armheight*3/4+knucklesheight              
                          
-   hep: add word ptr[di],neckwidth
-                            
-   frt:  
-        mov bx,armheight/4 
+        jmp boxlop6         
+                         
+   hee: 
+        mov bx,[si+2]
+        MOV [di],bx
+        add word ptr[di],boxwidth
+        mov bx,armheight*3/4+knucklesheight  
         
-  boxoop:
-        mov cx,[si+2]      ;Column 
-        mov dx,[si]        ;Row
-        mov al,armclr      ;Pixel color 
+  boxlop6:
+        mov cx,[si+2]         ;Column 
+        mov dx,[si]           ;Row
+        
         call draw
-        dec word ptr [si]
-        dec bx
-        jnz boxoop
-        
-  jop:  add word ptr[si],armheight/2   
-        
+        dec word ptr [si] 
+        push bx
         mov bx,orientate
         cmp bx,player1
-        jz  hery   
+        jz  heeg  
+        dec word ptr[si+2] 
+        jmp ddp
         
-        sub word ptr[si+2],armwidth/8 
-        mov bx,[si+2]
-        MOV [di],bx
-        sub word ptr[di],armwidth/6 
-        mov bx,armheight*5/4
-                         
-        jmp boxloop         
-                         
-  hery: add word ptr[si+2],armwidth/8  
-        mov bx,[si+2]
-        MOV [di],bx
-        add word ptr[di],armwidth/6
-        mov bx,armheight*5/4  
-        
-  boxloop:
-        mov cx,[si+2]         ;Column 
-        mov dx,[si]       ;Row
-        mov al,4         ;Pixel color 
-        call draw
-        dec word ptr [si]
+ heeg:  inc word ptr[si+2]
+  ddp:  pop bx
         dec bx
-        jnz boxloop    
+        jnz boxlop6
+            
+        add word ptr[si],knucklesheight              ;to get to normal arm height
         
-        add word ptr[si],armheight/4 
-                  
+        add word ptr[si],armheight*3/4+fingerwidth   ;to get to fingers below
+        
+        mov bx,[di]
+        mov [si+2],bx
+         
+        mov bx,orientate
+        cmp bx,player1
+        jz  hero  
+        add word ptr[si+2],fingerwidth*2 
+        jmp raps 
+        
+ hero:  sub word ptr[si+2],fingerwidth*2
+  
+        
+ raps:  mov bx,fingerwidth
+                           
+        
+  boxlop8:
+        mov cx,[si+2]         ;Column 
+        mov dx,[si]           ;Row
+        
+        call draw
+        dec word ptr [si] 
+        
+        dec bx
+        jnz boxlop8 
+       
+        mov bx,orientate
+        cmp bx,player1
+        jz  herp  
+        sub word ptr[si+2],fingerwidth 
+        jmp reyp                              
+        
+ herp:  add word ptr[si+2],fingerwidth
+  
+        
+ reyp:  mov bx,armheight*5/4-fingerwidth
+        
+ boxlop0:
+        mov cx,[si+2]         ;Column 
+        mov dx,[si]           ;Row
+        
+        call draw
+        dec word ptr [si] 
+        
+        dec bx
+        jnz boxlop0
+        
+        pop [si+2]
+        pop [si]          
         ret  
         
  starmfo2 endp
@@ -879,7 +1174,14 @@ starmfo2 proc near
 
 head proc near
         
-        mov al,SkinClr         ;Pixel color 
+        mov bx,emsa7 
+        cmp bx,1
+        jz u54  
+        mov al,skinclr
+        jmp ui
+   u54: mov al,0 
+    
+   ui:
         mov bx,[si+2]
         MOV [di],bx    
         
@@ -940,8 +1242,16 @@ Eye Proc Near
      cmp bx,player1
      jz  fert
      sub word ptr[di],eyewidth+headwidth*3/4
-     sub word ptr[si+2],headwidth*3/4 
-     mov al,SPEyeClr
+     sub word ptr[si+2],headwidth*3/4  
+     
+     mov bx,emsa7 
+        cmp bx,1
+        jz e54  
+        mov al,SPEyeClr
+        jmp ei
+   e54: mov al,0 
+    
+   ei:
      mov bx,eyeheight
      
      jmp eyeLp
@@ -949,7 +1259,14 @@ Eye Proc Near
 fert:
      add word ptr[di],eyewidth+headwidth*3/4 
      add word ptr[si+2],headwidth*3/4
-     mov al,FPEyeClr
+     mov bx,emsa7 
+        cmp bx,1
+        jz j54  
+        mov al,FPEyeClr
+        jmp eji
+   j54: mov al,0 
+    
+   eji:
      mov bx,eyeheight
      
 eyeLp:
@@ -981,7 +1298,15 @@ Eye endp
               
               
 Crouch proc near       
+        
+        mov bx,emsa7 
+        cmp bx,1
+        jz r54  
+        mov al,reglclr
+        jmp ri
+   r54: mov al,0 
     
+   ri:
         mov bx,[si+2]
         MOV [di],bx 
         mov bx,orientate
@@ -997,7 +1322,7 @@ Crouch proc near
  regl1: 
         mov cx,[si+2]         ;Column 
         mov dx,[si]       ;Row
-        mov al,reglClr         ;Pixel color 
+        
         call draw
         dec word ptr [si] 
         push bx
@@ -1029,7 +1354,7 @@ Crouch proc near
         
         mov cx,[si+2]      ;Column 
         mov dx,[si]      ;Row
-        mov al,reglClr   ;Pixel color 
+        
         call draw
         dec word ptr [si]    
         
@@ -1046,7 +1371,7 @@ Crouch proc near
         sub word ptr [si+2],2
         mov bx,[si+2]
         MOV [di],bx
-        sub word ptr[di],torsowidth    ;I add the width to starting Y-Coordinate
+        sub word ptr[di],reglwidth/2+torsowidth/2    ;I add the width to starting Y-Coordinate
         mov bx,torsoheight*2/3 
         jmp torso2
   
@@ -1060,16 +1385,24 @@ Crouch proc near
         inc word ptr [si+2]
         mov bx,[si+2]
         MOV [di],bx
-        add word ptr[di],torsowidth    ;I add the width to starting Y-Coordinate
+        add word ptr[di],reglwidth/2+torsowidth/2    ;I add the width to starting Y-Coordinate
         mov bx,torsoheight*2/3   
         
 
   torso2:
         mov cx,[si+2]         ;Column 
         mov dx,[si]           ;Row
-                 
-        mov al,torsoClr        ;Pixel color
-        call draw
+        push bx         
+        mov bx,emsa7 
+        cmp bx,1
+        jz tt4  
+        mov al,torsoclr
+        jmp eti
+   tt4: mov al,0 
+    
+   eti:
+        call draw 
+        pop bx
         dec word ptr [si]  
         push bx 
         mov ah,0
@@ -1099,9 +1432,17 @@ Crouch proc near
  torso4:
         mov cx,[si+2]         ;Column 
         mov dx,[si]           ;Row
-                 
-        mov al,torsoClr        ;Pixel color
-        call draw
+        push bx         
+        mov bx,emsa7 
+        cmp bx,1
+        jz tp4  
+        mov al,torsoclr
+        jmp epi
+   tp4: mov al,0 
+    
+   epi:
+        call draw 
+        pop bx
         dec word ptr [si]  
         push bx 
         mov ah,0
@@ -1128,7 +1469,47 @@ Crouch proc near
         
         ret       
         
-crouch endp
+crouch endp 
+
+armgamboo proc near       
+        
+        mov bx,emsa7 
+        cmp bx,1
+        jz pi7  
+        mov al,armclr
+        jmp pii
+   pi7: mov al,0 
+    
+   pii:
+        mov bx,[si+2]
+        MOV [di],bx                   ;I add the width to starting Y-Coordinate
+        mov bx,orientate
+        cmp bx,player1
+        jz  gt
+        sub word ptr[di],armheight
+        mov bx,armgamboowidth
+        
+        jmp dra3
+        
+   gt:  add word ptr[di],armheight
+        mov bx,armgamboowidth
+        
+ dra3:
+        mov cx,[si+2]         ;Column 
+        mov dx,[si]       ;Row        
+        
+        call draw
+        
+        inc word ptr [si] 
+        dec bx
+        jnz dra3
+        sub word ptr[si],armgamboowidth
+        
+        
+    ret   
+    
+armgamboo endp        
+        
            
 draw proc near 
            
