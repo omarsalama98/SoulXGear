@@ -1,9 +1,11 @@
                                                 ; EXPORT MY SELF
 PUBLIC USERNAME
+PUBLIC LOAD_USER_NAME
 					; VARIABLE WHICH ARE DECLARED IN MAIN PROGRAM
 					EXTRN PLAYER1_NAME:BYTE
 					EXTRN USER_NAME_ENTER_MES:BYTE
 					EXTRN USER_NAME_ENTER_KEY:BYTE
+                    EXTRN HP_BAR_PLAYER1_NAME:BYTE
 ;---------------------------------------------------------------------------------------------------	
                                                 .MODEL SMALL
 
@@ -95,4 +97,33 @@ GO_TO_MAIN_MENU:
 
         RET
 USERNAME    ENDP
+
+LOAD_USER_NAME  PROC    FAR
+
+        LEA DI, HP_BAR_PLAYER1_NAME
+        LEA SI, PLAYER1_NAME
+
+        MOV CX, 16
+        LOAD_NAME:
+                MOV AL, [SI]
+                MOV [DI], AL
+                INC DI
+                INC SI
+                LOOP LOAD_NAME
+        
+        LEA DI, HP_BAR_PLAYER1_NAME
+        MOV CX, 16
+        LOAD_NAME_2:
+                MOV AL, [DI]
+                CMP AL, '$'
+                JNE OK_LETTER
+                MOV AL, ' '
+                MOV [DI], AL
+                OK_LETTER:
+                        INC DI 
+                        LOOP LOAD_NAME_2
+
+        RET
+LOAD_USER_NAME  ENDP
+
 END
