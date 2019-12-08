@@ -6,51 +6,57 @@ include macros.inc
 .DATA
 ;-------------------------------------------------------------------STATIC CONFIGURATIONS------------------------------------------------
 ;SCREEN DIMENSIONS 1024X768
-SCREEN_MAX_X 	EQU 1024
-SCREEN_MAX_Y 	EQU 768
-
+SCREEN_MAX_X 			EQU 1024
+SCREEN_MAX_Y 			EQU 768
+ScreenEndCol    		EQU 1024
+ScreenEndRow    		EQU 768 
 
 ;BODY DIMENSIONS
-eyewidth          	EQU 5                     
-torsowidth        	EQU 25                    
-gazmawidth        	EQU 50                                                               
-reglwidth         	EQU 22
-armgamboowidth    	EQU 90        ;Widths are generally the length of the body parts   
-armwidth          	EQU 80        ;But they were called this way as everything was sideways
-armwidthpunch     	EQU 110
-armwidthpunchfo2  	EQU 90        ;zawwed hena 3shan el punch fo2 bas elly tetzabbat    
-neckwidth         	EQU 15                 
-headwidth         	EQU 40
-fingerwidth       	EQU 3 
-boxwidth          	EQU 22
-
-precisionTorso  	EQU 8
-precisionTorso2 	EQU 2 
-eyeheight       	EQU 5          
-nosgazmaheight  	EQU 10
-kickreglheight  	EQU 120 
-reglheight      	EQU 100 
-torsoheight     	EQU 70
-armheight       	EQU 10        
-neckheight      	EQU 12         
-headheight      	EQU 45
-knucklesheight  	EQU 4
-
-;BODY COLORS                                       
-gazmaClr    		EQU 6                      
-ReglClr     		EQU 1                      
-TorsoClr    		EQU 4
-armClr      		EQU 8
-SkinClr     		EQU 7 
-HairClr     		EQU 9  
-FPEyeClr    		EQU 5
-SPEyeClr    		EQU 14
+eyewidth          		EQU 5                     
+torsowidth        		EQU 25                    
+gazmawidth        		EQU 50                                                               
+reglwidth         		EQU 22
+armgamboowidth    		EQU 90        ;Widths are generally the length of the body parts   
+armwidth          		EQU 80        ;But they were called this way as everything was sideways
+armwidthpunch     		EQU 150
+armwidthpunchfo2  		EQU 90        ;zawwed hena 3shan el punch fo2 bas elly tetzabbat    
+neckwidth         		EQU 15                 
+headwidth         		EQU 40
+fingerwidth       		EQU 3 
+boxwidth          		EQU 22
+	
+precisionTorso  		EQU 8
+precisionTorso2 		EQU 2 
+eyeheight       		EQU 5          
+nosgazmaheight  		EQU 10
+kickreglheight  		EQU 150 
+reglheight      		EQU 100 
+torsoheight     		EQU 70
+armheight       		EQU 10        
+neckheight      		EQU 12         
+headheight      		EQU 45
+knucklesheight  		EQU 4
+	
+;GAME COLORS	
+GroundClr   			EQU 14
+BackGndClr  			EQU 3 
+			
+;BODY COLORS			                                       
+gazmaClr    			EQU 6 
+ReglClr     			EQU 1     
+TorsoClr    			EQU 4 
+armClr      			EQU 8 
+SkinClr     			EQU 7     
+HairClr     			EQU 9 
+FPEyeClr    			EQU 5 
+SPEyeClr    			EQU 14
+HeartsClr   			EQU 12
 
 ;COLORS:
-; blue:1          
+; blue:1      
 ; green:2     
 ; LightBlue:3
-; red:4           
+; red:4       
 ; purple:5    
 ; orange:6
 ; white:7   
@@ -128,24 +134,39 @@ P1_Y 					EQU word ptr[origin_p1][0]
 
 P2_X 					EQU word ptr[origin_p2][2]
 P2_Y 					EQU word ptr[origin_p2][0]
+
+
+;GROUND CONSTANTS
+GroundStart     		EQU 601          ;Rows
+GroundHeight    		EQU 50
+
+;HEARTS constants
+HeartsStart     		EQU 100          ;Rows
+HeartsHeight    		EQU 20
+P1HEARTS_X				EQU 50
+P1HEARTS_Y				EQU 100
+
+P2HEARTS_X				EQU 974
+P2HEARTS_Y				EQU 100
+
 ;---------------------------------------------------------END STATIC CONFIGURATIONS---------------------------------------------------------
 
 
 ;---------------------------------------------------------------GAME VARIABLES--------------------------------------------------------------
-;				Y   X
-startXY     	DW  START_Y, START_X_1
-endY        	DW  ?
-startXY2    	DW  START_Y, START_X_2  
-endY2       	DW  ? 
-orientate   	DW  1
-stance      	DW  0		;0-> stands & 1->crouch --> FOR DRAWING 
-P1_stance      	DW  0		;0-> stands & 1->crouch 2->JUMP --> FOR GAME LOGIC
-P2_stance      	DW  0		;0-> stands & 1->crouch 2->JUMP --> FOR GAME LOGIC
-Emsa7			DW  0		;Variable to clear player   
+;						Y   X
+startXY     			DW  START_Y, START_X_1
+endY        			DW  ?
+startXY2    			DW  START_Y, START_X_2  
+endY2       			DW  ? 
+orientate   			DW  1
+stance      			DW  0		;0-> stands & 1->crouch --> FOR DRAWING 
+P1_stance      			DW  0		;0-> stands & 1->crouch 2->JUMP --> FOR GAME LOGIC
+P2_stance      			DW  0		;0-> stands & 1->crouch 2->JUMP --> FOR GAME LOGIC
+Emsa7					DW  0		;Variable to clear player   
 
-;			 Y    X
-origin_p1 DW START_Y, START_X_1
-origin_p2 DW START_Y, START_X_2
+;			 					Y    X
+origin_p1 				DW START_Y, START_X_1
+origin_p2 				DW START_Y, START_X_2
 
 JUMP_COUNTER_UP1 		DW 0
 JUMP_COUNTER_DN1 		DW 0
@@ -154,6 +175,23 @@ JUMP_COUNTER_DN2 		DW 0
 
 FLAGS 					DW ?			;NOT USED NOW
 IN_KEY 					DB ?
+
+;GROUND  VARIABLES
+GroundXY 				DW  601,0
+GroundEnd				DW  ?
+
+
+;HEART VARIABLES
+P1HeartsXY    			DW  P1HEARTS_Y ,P1HEARTS_X
+P1HeartsEnd   			DW  ? 
+P1HeartsLeft  			DW  2
+			
+P2HeartsXY    			DW  P2HEARTS_Y ,P2HEARTS_X
+P2HeartsEnd   			DW  ?
+P2HeartsLeft  			DW  1
+EMSA7HEARTS				DW	0
+			
+P1P2Hearts    			DW  1
 ;---------------------------------------------------------------END GAME VARIABLES--------------------------------------------------------------
 
 
@@ -176,18 +214,18 @@ MAIN PROC FAR
 	; mov ah, 0
 	; int 10h
 ;--------------------------------------------------------------------------END SET VIDEO MODE--------------------------------------------------------------
+
+;-------------------------------------------------------------------------- LOAD ENVIROMENT---------------------------------------------------------------
+	call Background
+    DRAW_P1_HEARTS 3
+	DRAW_P2_HEARTS 3
 	
-	
+;--------------------------------------------------------------------------END LOAD ENVIROMENT--------------------------------------------------------------
 	
 ;-----------------------------------------------------------------------------INTIALIZE PLAYERS------------------------------------------------------------
 	DRAW_P1 origin_p1, STNDS
 	DRAW_P2 origin_p2, STNDS
 ;----------------------------------------------------------------------------END INITIALIZE PLAYERS---------------------------------------------------------
-	
-	
-	
-	
-	
 	
 
 ;-----------------------------------------------------------------------------MAIN LOOP--------------------------------------------------------------------
@@ -947,6 +985,186 @@ ersem proc near
 	GO_OUT:	RET
 ersem endp    
 
+Background proc near
+        
+        lea bx,orientate
+        mov byte ptr[bx],1
+        
+        lea si,GroundXY
+        lea di,GroundEnd   
+        mov bx,word ptr[si+2]
+        mov word ptr[di],bx
+        mov bx,groundHeight
+        add word ptr[di],ScreenEndCol
+        mov al,GroundClr  
+        
+    GndLoop:
+        
+        mov cx,[si+2]     ;Column
+        mov dx,[si]       ;Row
+        call draw    
+        inc word ptr[si]
+        dec bx
+        jnz GndLoop
+        
+        sub word ptr[si],GroundHeight
+        mov bx,GroundStart
+        mov al,BackGndClr
+         
+    BackGndLoop:
+        
+        mov cx,[si+2]     ;Column
+        mov dx,[si]       ;Row
+        call draw    
+        dec word ptr[si]
+        dec bx
+        jnz BackGndLoop   
+    
+   ret
+    
+ Background ENDP 
+
+
+DrawHearts proc near
+        
+        
+        mov orientate,1
+        
+        mov bx,P1P2Hearts
+        cmp bx,player1   
+        
+        jz  plr1
+        
+        lea si,P2HeartsXY
+        lea di,P2HeartsEnd 
+        mov bx,word ptr[si+2]
+        mov word ptr[di],bx
+       
+        mov bx,P2HeartsLeft
+        
+        jmp HeartsLoop
+  
+  plr1: lea si,P1HeartsXY
+        lea di,P1HeartsEnd 
+        mov bx,word ptr[si+2]
+        mov word ptr[di],bx
+       
+        mov bx,P1HeartsLeft
+        
+    HeartsLoop:   
+    
+        push bx
+        push word ptr[si+2]
+        push word ptr[di]
+        mov bx,emsa7Hearts 
+        cmp bx,1
+        jz to6  
+        mov al,HeartsClr
+        jmp eo6
+   to6: mov al,BackGndClr 
+    
+   eo6:
+        mov bx,HeartsHeight/2
+        
+        LowHeartLoop:
+        
+            mov cx,[si+2]     ;Column
+            mov dx,[si]       ;Row
+            
+            call draw    
+            dec word ptr[si]
+            dec word ptr[si+2]
+            inc word ptr[di]
+            
+            dec bx
+            jnz LowHeartLoop
+            
+        mov bx,word ptr[di]
+        add bx,word ptr[si+2]
+        mov dx,0
+        mov ax,bx
+        mov bx,2
+        div bx
+        mov bx,ax 
+        push word ptr[di]                 ;storing endpoint for second half
+        mov word ptr[di],bx               ;Calculating Midpoint And Storing it
+        push bx                           ;It will be starting point for 2nd half
+		
+		mov bx,emsa7Hearts 
+        cmp bx,1
+        jz tq6  
+        mov al,HeartsClr
+        jmp eq6
+   tq6: mov al,BackGndClr 
+    
+   eq6:
+        mov bx,HeartsHeight/4
+            
+         
+        LeftTopHeartLoop:
+        
+            mov cx,[si+2]     ;Column
+            mov dx,[si]       ;Row 
+            
+            call draw                           ;Top Half of Heart
+            dec word ptr[si]                      
+            inc word ptr[si+2]
+            dec word ptr[di]
+            dec bx
+            
+            jnz LeftTopHeartLoop 
+        
+        add word ptr[si],HeartsHeight/4
+        pop word ptr[si+2]
+        pop word ptr[di]
+         
+        mov bx,emsa7Hearts 
+        cmp bx,1
+        jz te6  
+        mov al,HeartsClr
+        jmp er6
+   te6: mov al,BackGndClr 
+    
+   er6:
+        mov bx,HeartsHeight/4
+             
+            
+        RightTopHeartLoop:
+        
+            mov cx,[si+2]     ;Column
+            mov dx,[si]       ;Row
+            call draw                           ;Top Half of Heart
+            dec word ptr[si]                      
+            inc word ptr[si+2]
+            dec word ptr[di]
+            dec bx
+            
+            jnz RightTopHeartLoop    
+        
+        pop word ptr[di]
+        pop word ptr[si+2]    
+        
+        add word ptr[si],HeartsHeight*3/4
+        
+        mov bx,P1P2Hearts
+        cmp bx,Player1
+        jz  ply1
+        sub word ptr[si+2],HeartsHeight*2
+        sub word ptr[di],HeartsHeight*2
+        jmp fti 
+        
+  ply1: add word ptr[si+2],HeartsHeight*2
+        add word ptr[di],HeartsHeight*2 
+        
+   fti: pop bx
+        dec bx
+        
+        jnz HeartsLoop
+    
+   ret
+     
+ DrawHearts ENDP
+
 ras proc near
     
         lea si,startxy
@@ -980,19 +1198,19 @@ wa7ed proc near
         jz tq4  
         mov al,gazmaclr
         jmp eqi
-   tq4: mov al,0 
+   tq4: mov al,BackGndClr 
     
    eqi:
         call gazma
         call body
         
-        mov bx,[si+2]           ;;gamda 
-        push bx                 ;;GDN
+                   
+        push [si+2]                 ;;gamda GEDAN
         
         call arm 
         
-        pop bx                  ;;law
-        mov [si+2],bx           ;;etshaloo 
+                         
+        pop [si+2]           		;;law etshaloo 
         
         call head
         mov bx,emsa7 
@@ -1003,7 +1221,7 @@ wa7ed proc near
         call EYE
         ret
         
-   p69: mov al,0 
+   p69: mov al,BackGndClr 
    
         call gazma 
         call EYE
@@ -1033,13 +1251,13 @@ wa7ededogambo proc near
         jz tu4  
         mov al,gazmaclr
         jmp eqli
-   tu4: mov al,0 
+   tu4: mov al,BackGndClr 
     
    eqli:
         call gazma
         call body
                 
-        push [si+2]          ;;gamda GDN
+        push [si+2]          ;;gamda GEDAN
         
         call armgamboo 
         
@@ -1054,7 +1272,7 @@ wa7ededogambo proc near
         call EYE
         ret
         
-   p09: mov al,0 
+   p09: mov al,BackGndClr 
    
         call gazma 
         call EYE
@@ -1083,7 +1301,7 @@ wa7edbeykick proc near
         jz wt4  
         mov al,gazmaclr
         jmp wti
-   wt4: mov al,0 
+   wt4: mov al,BackGndClr 
     
    wti:
         call gazma
@@ -1106,7 +1324,7 @@ wa7edbeykick proc near
         call EYE
         ret
         
-   p0:  mov al,0 
+   p0:  mov al,BackGndClr 
    
         call gazma 
         call EYE
@@ -1135,14 +1353,14 @@ wa7edbeyedrab proc near
         jz p58  
         mov al,gazmaclr
         jmp col
-   p58: mov al,0 
+   p58: mov al,BackGndClr 
    
   col:  call gazma
           
         sub word ptr[si],torsoheight
         sub word ptr[si],reglheight
         
-        push [si+2]          ;;gamda GDN
+        push [si+2]          ;;gamda GEDAN
         
         call arm
         
@@ -1163,7 +1381,7 @@ wa7edbeyedrab proc near
         call EYE
         ret
         
-   p9:  mov al,0 
+   p9:  mov al,BackGndClr 
    
         call gazma 
         call EYE
@@ -1192,7 +1410,7 @@ wa7edbeyedrabfo2 proc near
         jz wr4  
         mov al,gazmaclr
         jmp wri
-   wr4: mov al,0 
+   wr4: mov al,BackGndClr 
     
    wri:
         call gazma
@@ -1224,7 +1442,7 @@ wa7edbeyedrabfo2 proc near
         call starmfo2
         ret
         
-   p97: mov al,0 
+   p97: mov al,BackGndClr 
    
         call gazma 
         call EYE
@@ -1257,13 +1475,13 @@ wa7edm2ambar proc near
         jz weq  
         mov al,gazmaclr
         jmp wati
-   weq: mov al,0 
+   weq: mov al,BackGndClr 
     
    wati:
         call gazma
         call crouch 
         
-        push [si+2]          ;;gamda GDN
+        push [si+2]          ;;gamda GEDAN
         
         call arm 
         
@@ -1279,7 +1497,7 @@ wa7edm2ambar proc near
         call EYE
         ret
         
-   p93: mov al,0 
+   p93: mov al,BackGndClr 
    
         call gazma 
         call EYE
@@ -1370,7 +1588,7 @@ gazma_ma2looba proc near
         jz p54  
         mov al,gazmaclr
         jmp ki
-   p54: mov al,0 
+   p54: mov al,BackGndClr 
     
    ki: 
         add word ptr[si],reglwidth  
@@ -1485,7 +1703,7 @@ body proc near
         jz p57  
         mov al,reglclr
         jmp poi
-   p57: mov al,0 
+   p57: mov al,BackGndClr 
     
    poi:
         call draw
@@ -1518,7 +1736,7 @@ body proc near
         jz p5h  
         mov al,torsoclr
         jmp kit
-   p5h: mov al,0 
+   p5h: mov al,BackGndClr 
     
    kit:
         call draw
@@ -1558,7 +1776,7 @@ body proc near
         jz p52  
         mov al,torsoclr
         jmp kiw
-   p52: mov al,0 
+   p52: mov al,BackGndClr 
     
    kiw:
         call draw 
@@ -1599,7 +1817,7 @@ arm proc near
         jz p5K  
         mov al,armclr
         jmp kip
-   p5K: mov al,0 
+   p5K: mov al,BackGndClr 
     
    kip:
         mov bx,[si+2]
@@ -1680,7 +1898,7 @@ starm proc near
         jz i54  
         mov al,armclr
         jmp kr
-   i54: mov al,0 
+   i54: mov al,BackGndClr 
     
    kr:
         mov bx,[si+2]
@@ -1810,7 +2028,7 @@ starm proc near
         jz t54  
         mov al,reglclr
         jmp ti
-   t54: mov al,0 
+   t54: mov al,BackGndClr 
     
    ti:   
         mov bx,[si+2]
@@ -1854,7 +2072,7 @@ starmfo2 proc near
         jz q54  
         mov al,armclr
         jmp qi
-   q54: mov al,0 
+   q54: mov al,BackGndClr 
     
    qi:
         mov bx,word ptr[si+2]                
@@ -2021,7 +2239,7 @@ head proc near
         jz u54  
         mov al,skinclr
         jmp ui
-   u54: mov al,0 
+   u54: mov al,BackGndClr 
     
    ui:
         mov bx,[si+2]
@@ -2091,7 +2309,7 @@ Eye Proc Near
         jz e54  
         mov al,SPEyeClr
         jmp ei
-   e54: mov al,0 
+   e54: mov al,BackGndClr 
     
    ei:
      mov bx,eyeheight
@@ -2106,7 +2324,7 @@ fert:
         jz j54  
         mov al,FPEyeClr
         jmp eji
-   j54: mov al,0 
+   j54: mov al,BackGndClr 
     
    eji:
      mov bx,eyeheight
@@ -2146,7 +2364,7 @@ Crouch proc near
         jz r54  
         mov al,reglclr
         jmp ri
-   r54: mov al,0 
+   r54: mov al,BackGndClr 
     
    ri:
         mov bx,[si+2]
@@ -2240,7 +2458,7 @@ Crouch proc near
         jz tt4  
         mov al,torsoclr
         jmp eti
-   tt4: mov al,0 
+   tt4: mov al,BackGndClr
     
    eti:
         call draw 
@@ -2280,7 +2498,7 @@ Crouch proc near
         jz tp4  
         mov al,torsoclr
         jmp epi
-   tp4: mov al,0 
+   tp4: mov al,BackGndClr 
     
    epi:
         call draw 
@@ -2320,20 +2538,20 @@ armgamboo proc near
         jz pi7  
         mov al,armclr
         jmp pii
-   pi7: mov al,0 
+   pi7: mov al,BackGndClr 
     
    pii:
         mov bx,[si+2]
         MOV [di],bx                   ;I add the width to starting Y-Coordinate
         mov bx,orientate
         cmp bx,player1
-        jz  gt
+        jz  git
         sub word ptr[di],armheight
         mov bx,armgamboowidth
         
         jmp dra3
         
-   gt:  add word ptr[di],armheight
+   git: add word ptr[di],armheight
         mov bx,armgamboowidth
         
  dra3:
@@ -2365,18 +2583,19 @@ draw proc near
            
            dec cx      
            cmp cx,[di]        
-           jnz back 
+           JA back 
            pop bx
            ret  
            
     ymeen: 
            inc cx      
            cmp cx,[di]        
-           jnz back  
+           JB back  
            
            pop bx
            ret
 draw endp
+
 
 
 drawvert proc near 
@@ -2387,7 +2606,7 @@ drawvert proc near
            int 10h  
            dec dx      
            cmp dx,[di]        
-           jnz back2  
+           JA back2  
            
            pop bx
            ret
