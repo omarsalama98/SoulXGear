@@ -4282,7 +4282,39 @@ USERNAME    PROC       NEAR
         MOV DH, 1
         INT 10H
 
-        MOV SI, 0
+		MOV SI, 0
+USER_NAME_LOOP1:     ; GET USER INPUT
+        MOV AH, 0
+        INT 16H
+
+        ; CHECK IF PRESSED ENTER AND AT LEAST 1 CHARACTER WAS ENTERED THEN MOVE TO MAIN MENU
+        CMP AH, 1CH
+        JE USER_NAME_LOOP1
+
+USER_NAME_CHECK1:
+        ; MAKE SURE IT IS A LETTER or space
+        CMP AL, 41H
+        JB USER_NAME_LOOP1
+        CMP AL, 7AH
+        JA USER_NAME_LOOP1
+        CMP AL, 5BH
+        JB VALID_LETTER1
+        CMP AL, 60H
+        JA VALID_LETTER1
+        JMP USER_NAME_LOOP1
+
+VALID_LETTER1:
+        LEA BX, PLAYER1_NAME    ; LOAD VALUE INTO MEMORY
+        MOV [BX][SI], AL
+
+        MOV AH, 2                      ; SHOW IT ON SCREEN
+        MOV DL, AL
+        INT 21H
+
+        INC SI              ; INCREMENT VARIABLE
+
+;------------------------------------------------------------------------------
+
 USER_NAME_LOOP:     ; GET USER INPUT
         MOV AH, 0
         INT 16H
@@ -4290,26 +4322,17 @@ USER_NAME_LOOP:     ; GET USER INPUT
         ; CHECK IF PRESSED ENTER AND AT LEAST 1 CHARACTER WAS ENTERED THEN MOVE TO MAIN MENU
         CMP AH, 1CH
         JNE USER_NAME_CHECK
-        CMP SI, 0
-        JE USER_NAME_LOOP
         ; HERE EXIT USER NAME ENTRY SCREEN
         JMP GO_TO_MAIN_MENU
 
 USER_NAME_CHECK:
         CMP SI, 15
         JE USER_NAME_LOOP
-        ; MAKE SURE IT IS A LETTER
-        CMP AL, 41H
-        JB USER_NAME_LOOP
-        CMP AL, 7AH
-        JA USER_NAME_LOOP
-        CMP AL, 5BH
-        JB VALID_LETTER
-        CMP AL, 60H
-        JA VALID_LETTER
-        JMP USER_NAME_LOOP
 
-VALID_LETTER:
+		; TAKE ANY CHARACTER SINCE IT'S AFTER 1ST ONE EXCEPT A $
+		CMP AL, 24H
+		JE USER_NAME_LOOP
+
         LEA BX, PLAYER1_NAME    ; LOAD VALUE INTO MEMORY
         MOV [BX][SI], AL
 
