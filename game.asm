@@ -935,6 +935,10 @@ PLAYER1_WON_FINAL:
         MOV CX, 15
         REP MOVSB
 
+		MOV AL, ' '
+		MOV [DI], AL
+
+		INC DI
         MOV AL, 'W'
         MOV [DI], AL
 
