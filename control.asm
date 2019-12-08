@@ -215,17 +215,23 @@ MAIN PROC FAR
 	; int 10h
 ;--------------------------------------------------------------------------END SET VIDEO MODE--------------------------------------------------------------
 
+
+
 ;-------------------------------------------------------------------------- LOAD ENVIROMENT---------------------------------------------------------------
 	call Background
     DRAW_P1_HEARTS 3
 	DRAW_P2_HEARTS 3
 	
-;--------------------------------------------------------------------------END LOAD ENVIROMENT--------------------------------------------------------------
+;--------------------------------------------------------------------------END LOAD ENVIROMENT------------------------------------------------------------
+
+
 	
 ;-----------------------------------------------------------------------------INTIALIZE PLAYERS------------------------------------------------------------
 	DRAW_P1 origin_p1, STNDS
 	DRAW_P2 origin_p2, STNDS
-;----------------------------------------------------------------------------END INITIALIZE PLAYERS---------------------------------------------------------
+;----------------------------------------------------------------------------END INITIALIZE PLAYERS--------------------------------------------------------
+
+
 	
 
 ;-----------------------------------------------------------------------------MAIN LOOP--------------------------------------------------------------------
@@ -341,12 +347,19 @@ MAIN PROC FAR
 			JNE CHECK_P1_DN
 				P1_MOV_LEFT:
 				CMP P1_X, MAX_LEFT
-				JBE MAIN_LOOP_END
+				JBE DRAW_P1_AGAIN
 					CALL CLR_P1
 					MOV AX, RUN_STEP
 					SUB P1_X, AX
 					DRAW_P1 origin_p1, P1_stance
 					JMP MAIN_LOOP_END
+					
+					
+		DRAW_P1_AGAIN:								;REDRAWS PLAYER WHEN HE IS AT THE LEFT CORNER (THIS FIXES A BUG WHEN KICKS HAPPEN)
+			DRAW_P1 origin_p1, P1_stance
+			JMP MAIN_LOOP_END
+		
+		
 		
 		;PLAYER 1 CROUCH
 		CHECK_P1_DN:			
@@ -431,7 +444,7 @@ MAIN PROC FAR
 				CMP P1_stance, CRCH		;If the player is crouching or jumping do not attack
 				JE MAIN_LOOP_END
 				CMP P1_stance, JMPS
-				JE MAIN_LOOP_END
+				JE MAIN_LOOP_END ;IF P1 IS JUMPING NOTHING HAPPENS
 					CALL CLR_P1
 					MOV P1_stance, KICKS	;IMPORTANT FOR THE CLEAR FUNCTION
 					DRAW_P1 origin_p1, P1_stance
@@ -442,7 +455,7 @@ MAIN PROC FAR
 					MOV P1_stance, STNDS
 					DRAW_P1 origin_p1, P1_stance
 					JMP P1_KICK			;GO CHECK FOR COLLISION
-					
+										
 		CHECK_P1_DEF:
 			CMP IN_KEY, Q_KEY
 			JNE CHECK_P2_R
@@ -465,12 +478,17 @@ MAIN PROC FAR
 			JNE CHECK_P2_L
 				P2_MOV_RIGHT:
 				CMP P2_X, MAX_RIGHT
-				JAE MAIN_LOOP_END
+				JAE DRAW_P2_AGAIN
 					CALL CLR_P2
 					ADD P2_X, RUN_STEP
 					DRAW_P2 origin_p2, P2_stance
 					JMP MAIN_LOOP_END
-					
+		
+		DRAW_P2_AGAIN:								;REDRAWS PLAYER WHEN HE IS AT THE LEFT CORNER (THIS FIXES A BUG WHEN KICKS HAPPEN)
+			DRAW_P2 origin_p2, P2_stance
+			JMP MAIN_LOOP_END
+
+		
 		;MOVE PLAYER 2 LEFT
 		CHECK_P2_L:		
 			CMP IN_KEY, LEFT_KEY
@@ -565,6 +583,7 @@ MAIN PROC FAR
 					MOV P2_stance, STNDS	
 					DRAW_P2 origin_p2, p2_stance
 					JMP P2_PNCH_FRNT			;GO CHECK FOR COLLISION
+					
 		;PLAYER2 ATTACK DOWN
 		CHECK_P2_ATCKDN:
 			CMP IN_KEY, P_KEY
@@ -628,7 +647,7 @@ MAIN PROC FAR
 			MOV AX, P1_X
 			ADD AX, COLLISION_DIST		;IF THE DISTANCE BETWEEN THE 2 PLAYERS IS NOT SUFFICIENT FOR COLLISION NOTHING HAPPENS
 			CMP AX, P2_X
-			JNE MAIN_LOOP_END
+			JNE DRAW_P2_AGAIN 		;MAIN_LOOP_END REPLACING THIS WITH DRAW_P2_AGAIN ->  THIS FIXES A BUG WHEN THE PLAYER IS KICKED PART OF HIM IS CLEARED
 			
 				CMP P2_stance, DEF	;IF PLAYER 2 IS DEFENDING --> MOVE BACKWARD WITH NO DAMAGE
 				JNE CHK_BDYSHOT_FRM_P1_FRNTPNCH
@@ -644,7 +663,7 @@ MAIN PROC FAR
 					
 				CHK_LEGSHOT_FRM_P1_FRNTPNCH:
 				CMP P2_stance, JMPS		;IF PLAYER 2 IS JUMPING --> LEGSHOT
-				JNE MAIN_LOOP_END
+				JNE DRAW_P2_AGAIN		;MAIN_LOOP_END REPLACING THIS WITH DRAW_P2_AGAIN ->  THIS FIXES A BUG WHEN THE PLAYER IS KICKED PART OF HIM IS CLEARED
 					CALL P2_LEGSHOT
 					JMP P2_MOV_RIGHT
 					JMP MAIN_LOOP_END	;ELSE IF PLAYER 2 IS CROUCHING -> NOTHING HAPPENS
@@ -653,7 +672,7 @@ MAIN PROC FAR
 			MOV AX, P1_X
 			ADD AX, COLLISION_DIST		;IF THE DISTANCE BETWEEN THE 2 PLAYERS IS NOT SUFFICIENT FOR COLLISION NOTHING HAPPENS
 			CMP AX, P2_X
-			JNE MAIN_LOOP_END
+			JNE DRAW_P2_AGAIN 		;MAIN_LOOP_END REPLACING THIS WITH DRAW_P2_AGAIN ->  THIS FIXES A BUG WHEN THE PLAYER IS KICKED PART OF HIM IS CLEARED
 			
 				CMP P2_stance, DEF		;IF PLAYYER 2 IS DEFENDING --> THE KICK WILL MAKE A DAMAGE
 				JNE CHK_LEGSHOT_FRM_P1_KICKPNCH
@@ -703,7 +722,7 @@ MAIN PROC FAR
 			MOV AX, P2_X
 			SUB AX, COLLISION_DIST		;IF THE DISTANCE BETWEEN THE 2 PLAYERS IS NOT SUFFICIENT FOR COLLISION NOTHING HAPPENS
 			CMP AX, P1_X
-			JNE MAIN_LOOP_END
+			JNE DRAW_P1_AGAIN ;MAIN_LOOP_END REPLACING THIS WITH DRAW_P1_AGAIN ->  THIS FIXES A BUG WHEN THE PLAYER IS KICKED PART OF HIM IS CLEARED
 				
 				CMP P1_stance, DEF	;IF PLAYER 2 IS DEFENDING --> MOVE BACKWARD WITH NO DAMAGE
 				JNE CHK_BDYSHOT_FRM_P2_FRNTPNCH
@@ -719,7 +738,7 @@ MAIN PROC FAR
 					
 				CHK_LEGSHOT_FRM_P2_FRNTPNCH:
 				CMP P1_stance, JMPS		;IF PLAYER 1 IS JUMPING --> LEGSHOT
-				JNE MAIN_LOOP_END
+				JNE DRAW_P1_AGAIN 		;MAIN_LOOP_END REPLACING THIS WITH DRAW_P1_AGAIN ->  THIS FIXES A BUG WHEN THE PLAYER IS KICKED PART OF HIM IS CLEARED
 					CALL P1_LEGSHOT
 					JMP P1_MOV_LEFT
 					JMP MAIN_LOOP_END	;ELSE IF PLAYER 1 IS CROUCHING -> NOTHING HAPPENS
@@ -728,7 +747,7 @@ MAIN PROC FAR
 			MOV AX, P2_X
 			SUB AX, COLLISION_DIST		;IF THE DISTANCE BETWEEN THE 2 PLAYERS IS NOT SUFFICIENT FOR COLLISION NOTHING HAPPENS
 			CMP AX, P1_X
-			JNE MAIN_LOOP_END
+			JNE DRAW_P1_AGAIN 		;MAIN_LOOP_END REPLACING THIS WITH DRAW_P1_AGAIN ->  THIS FIXES A BUG WHEN THE PLAYER IS KICKED PART OF HIM IS CLEARED
 				
 				CMP P1_stance, DEF	;IF PLAYER 2 IS DEFENDING --> THE KICK WILL MAKE A DAMAGE
 				JNE CHK_LEGSHOT_FRM_P2_KICKPNCH
@@ -894,14 +913,8 @@ P1_LEGSHOT ENDP
 
 P2_HEADSHOT PROC NEAR
 
-	;--------------------TEST----------------------
-	mov ah,9 ;Display
-	mov bh,0 ;Page 0
-	mov al,47h ;Letter D
-	mov cx,5h ;5 times
-	mov bl,0FAh ;Green (A) on white(F) background
-	int 10h
-	;----------------------------------------------
+	DRAW_P1_HEARTS 2
+	DRAW_P2_HEARTS 1
 
 	RET
 P2_HEADSHOT ENDP
