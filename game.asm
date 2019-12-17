@@ -1800,7 +1800,7 @@ wa7edbeyedrabfo2 proc near
         mov bx,emsa7 
         cmp bx,1
         jz tr0  
-        mov al,p2gazmaclr
+        mov al,p1gazmaclr
         jmp feq
    tr0: mov al,BackGndClr 
          
