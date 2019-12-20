@@ -122,6 +122,7 @@ PRINT_SENT MACRO INPUT_KEY_ASCII
 	LOCAL NOT_EOL_S
 	LOCAL LF_CR_S
 	LOCAL P_S_MACRO_END
+	LOCAL NOT_BKSPC
 	PUSHA
 	
 	CMP INPUT_KEY_ASCII, Enter_Key
@@ -132,6 +133,30 @@ PRINT_SENT MACRO INPUT_KEY_ASCII
 		MOV AH, 2
 		INT 10H
 		
+		MOV AL, INPUT_KEY_ASCII
+		CMP AL, 08H
+		JNE NOT_BKSPC
+		CMP DL, 0
+		JE P_S_MACRO_END
+		DEC DL
+		MOV BH, 0
+		MOV AH, 2
+		INT 10H
+		MOV AL, ' '				;AL = character to display.
+		MOV BH, 0							;BH = page number.
+		MOV BL, CLR_ATTR_SEND				;BL = attribute.
+		MOV CX,1							;CX = number of times to write character.
+		MOV AH, 09
+		INT 10H 
+		MOV BH, 0
+		MOV AH, 2
+		INT 10H
+
+		MOV CURSOR_SEND_Y, DH
+		MOV CURSOR_SEND_X, DL
+		JMP P_S_MACRO_END
+
+NOT_BKSPC:
 		MOV AL, INPUT_KEY_ASCII				;AL = character to display.
 		MOV BH, 0							;BH = page number.
 		MOV BL, CLR_ATTR_SEND				;BL = attribute.
@@ -153,7 +178,7 @@ PRINT_SENT MACRO INPUT_KEY_ASCII
 			MOV AH,6       				; FUNCTION 6
 			MOV AL,1        			; SCROLL BY 1 LINE   
 			MOV BH,CLR_ATTR_SEND      	; NORMAL VIDEO ATTRIBUTE  (BLUE)       
-			MOV CH,0       				; UPPER LEFT Y
+			MOV CH,1       				; UPPER LEFT Y
 			MOV CL,0       				; UPPER LEFT X
 			MOV DH,11     				; LOWER RIGHT Y
 			MOV DL,79     				; LOWER RIGHT X
@@ -167,6 +192,7 @@ PRINT_RECEIVED MACRO INPUT_KEY_ASCII
 	LOCAL NOT_EOL_R
 	LOCAL LF_CR_R
 	LOCAL P_R_MACRO_END
+	LOCAL NOT_BKSPC
 	PUSHA
 	
 	CMP INPUT_KEY_ASCII, Enter_Key
@@ -176,6 +202,31 @@ PRINT_RECEIVED MACRO INPUT_KEY_ASCII
 		MOV BH, 0
 		MOV AH, 2
 		INT 10H
+
+		MOV AL, INPUT_KEY_ASCII
+		CMP AL, 08H
+		JNE NOT_BKSPC
+		CMP DL, 0
+		JE P_R_MACRO_END
+		DEC DL
+		MOV BH, 0
+		MOV AH, 2
+		INT 10H
+		MOV AL, ' '				;AL = character to display.
+		MOV BH, 0							;BH = page number.
+		MOV BL, CLR_ATTR_RECEIVE				;BL = attribute.
+		MOV CX,1							;CX = number of times to write character.
+		MOV AH, 09
+		INT 10H 
+		MOV BH, 0
+		MOV AH, 2
+		INT 10H
+
+		MOV CURSOR_RECEIVE_Y, DH
+		MOV CURSOR_RECEIVE_X, DL
+		JMP P_R_MACRO_END
+
+NOT_BKSPC:
 		
 		MOV AL, INPUT_KEY_ASCII				;AL = character to display.
 		MOV BH, 0							;BH = page number.
@@ -198,7 +249,7 @@ PRINT_RECEIVED MACRO INPUT_KEY_ASCII
 			MOV AH,6       					; FUNCTION 6
 			MOV AL,1        				; SCROLL BY 1 LINE   
 			MOV BH,CLR_ATTR_RECEIVE      	; NORMAL VIDEO ATTRIBUTE  (BLUE)       
-			MOV CH,12       				; UPPER LEFT Y
+			MOV CH,13       				; UPPER LEFT Y
 			MOV CL,0       					; UPPER LEFT X
 			MOV DH,24     					; LOWER RIGHT Y
 			MOV DL,79     					; LOWER RIGHT X

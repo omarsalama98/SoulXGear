@@ -238,17 +238,17 @@ P1P2Hearts    			DW  1
 	PRESSED_KEY			DB ?
 	PRESSED_KEY_SC		DB ? ;PRESSED KEY SCANCODE
 	RECEIVED_KEY 		DB ?
-	CURSOR_SEND_Y		DB  0
+	CURSOR_SEND_Y		DB  1
 	CURSOR_SEND_X       DB  0
 	
-	CURSOR_RECEIVE_Y	DB  12
+	CURSOR_RECEIVE_Y	DB  13
 	CURSOR_RECEIVE_X   	DB  0
 	
 	p1startx   			DB  0 
-	p1starty    		DB  0
+	p1starty    		DB  1
              
 	p2startx    		DB  0 
-	p2starty    		DB  WindMid  
+	p2starty    		DB  (WindMid + 1)  
 ;--------------------------------------------------------------Main Game Data--------------------------------------------------------------------
 
                             ; USER NAME DATA
@@ -6261,7 +6261,27 @@ CHAT PROC NEAR
 	MOV DL,79     					; LOWER RIGHT X 
 	INT 10H   
 
+	MOV AH, 9
+	LEA DX, PLAYER1_NAME
+	INT 21H
 
+	MOV AH, 2
+	MOV DL, ':'
+	INT 21H
+
+	MOV BX, 0
+	MOV AH, 2
+	MOV DH, WindMid
+	MOV DL, 0
+	INT 10H
+
+	MOV AH, 9
+	LEA DX, PLAYER2_NAME
+	INT 21H
+
+	MOV AH, 2
+	MOV DL, ':'
+	INT 21H
 
 	; MOV AH,2 
     ; MOV DH,0                  ;MOVE CURSOR TO X,Y POSITION DH:Y DL:X
@@ -6444,7 +6464,7 @@ A7laChat Proc near
     mov ah,6            ; function 6
     mov al,1            ; scroll by 1 line    
     mov bh,01Fh         ; normal video attribute         
-    mov ch,0            ; upper left Y
+    mov ch,1            ; upper left Y
     mov cl,0            ; upper left X
     mov dh,11           ; lower right Y
     mov dl,79           ; lower right X 
@@ -6511,7 +6531,7 @@ A7laChat2 Proc near
     mov ah,6            ; function 6
     mov al,1            ; scroll by 1 line    
     mov bh,01Fh         ; normal video attribute         
-    mov ch,0            ; upper left Y
+    mov ch,1            ; upper left Y
     mov cl,0            ; upper left X
     mov dh,11           ; lower right Y
     mov dl,79           ; lower right X 
