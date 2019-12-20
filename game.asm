@@ -58,6 +58,16 @@ p2TorsoClr    EQU 12
 p2armClr      EQU 6 
 p2SkinClr     EQU 6 
 p2HairClr     EQU 9 
+;------------------------------------------------------------Serial----------------------------------------------------------------------
+;CONSTANTS
+	ESC_KEY 			EQU 01H
+	Enter_Key   		EQU 13
+	WindMid     		EQU WindHeight/2
+	WindWidth   		EQU 80
+	WindHeight  		EQU 25
+
+	CLR_ATTR_SEND 		EQU 1FH
+	CLR_ATTR_RECEIVE	EQU 4FH
 ;------------------------------------------------------------HP----------------------------------------------------------------------
 SCREEN_WIDTH            EQU         1024
 SCREEN_HEIGHT           EQU         768
@@ -222,6 +232,23 @@ EMSA7HEARTS				DW	0
 			
 P1P2Hearts    			DW  1
 ;---------------------------------------------------------------END GAME VARIABLES--------------------------------------------------------------
+;------------------------------------------------------------Serial----------------------------------------------------------------------
+;VARIABLES
+	EXIT_MES 			DB 'Press Any Key To Return To Main Menu','$'
+	PRESSED_KEY			DB ?
+	PRESSED_KEY_SC		DB ? ;PRESSED KEY SCANCODE
+	RECEIVED_KEY 		DB ?
+	CURSOR_SEND_Y		DB  0
+	CURSOR_SEND_X       DB  0
+	
+	CURSOR_RECEIVE_Y	DB  12
+	CURSOR_RECEIVE_X   	DB  0
+	
+	p1startx   			DB  0 
+	p1starty    		DB  0
+             
+	p2startx    		DB  0 
+	p2starty    		DB  WindMid  
 ;--------------------------------------------------------------Main Game Data--------------------------------------------------------------------
 
                             ; USER NAME DATA
@@ -254,7 +281,7 @@ PLAYER2_HEARTS             DW          3
 GAME_OVER                  DW          0               ; 0->NOT OVER, 1->PLAYER1 WON, 2->PLAYER2 WON
 PLAYER1_WON_MES            DB         100 DUP('$')
 PLAYER2_WON_MES            DB          'Player 2 Won!$' 
-END_GAME_MES               DB           '    Press Enter Key To Continue$'
+END_GAME_MES               DB          'Press Enter Key To Return To Main Menu$'
 
 ;-----------------------------------------------------------------------------GAME CODE------------------------------------------------------------------
 .CODE
@@ -281,7 +308,7 @@ RETURN_TO_MAIN_MENU:            ; DISPLAY MAIN MENU
 
 
 START_CHAT:
-        CALL CHAT_SCREEN                ; OPEN CHAT SCREEN AND WHEN DONE RETURN TO MAIN MENU
+        CALL CHAT                ; OPEN CHAT SCREEN AND WHEN DONE RETURN TO MAIN MENU
         JMP RETURN_TO_MAIN_MENU
 
 ;-----------------------------------------------------------------------------SET VIDEO MODE--------------------------------------------------------------
@@ -970,6 +997,11 @@ PLAYER1_WON_FINAL:
         MOV AL, '!'
         MOV [DI], AL
 
+		MOV BX, 0
+		MOV AH, 2
+		MOV DX, 1532H
+		INT 10H
+
         MOV AH, 9
         LEA DX, PLAYER1_WON_MES
         INT 21H
@@ -981,6 +1013,11 @@ PLAYER2_WON_FINAL:
         MOV AX, 4F02H
 	    MOV BX, 105H			
 	    INT 10H
+
+		MOV BX, 0
+		MOV AH, 2
+		MOV DX, 1532H
+		INT 10H
 
         MOV AH, 9
         LEA DX, PLAYER2_WON_MES
@@ -996,9 +1033,11 @@ EXIT_BY_ESC:
 EXIT:
 	;Press Enter key to exit
     ; move cursor
-    MOV AH, 2
-    MOV DX, 0200H
-    INT 10H
+
+	MOV BX, 0
+	MOV AH, 2
+	MOV DX, 1729H
+	INT 10H
 
     ;PRESS ENTER TO CONTINUE
     MOV AH, 9
@@ -1020,25 +1059,6 @@ QUIT_GAME:      ; EXIT WITH ERROR LEVEL 0
         MOV AX, 4C00H
         INT 21H
 MAIN ENDP
-
-CHAT_SCREEN     PROC    NEAR    ; EMPTY SCREEN TILL PHASE 2 TO IMPLEMENT CHAT
-        ; Activate Video mode TO CLEAR SCREEN
-		MOV AX, 4F02H
-		MOV BX, 105H
-		INT 10H
-
-		MOV AH, 9		
-		LEA DX, ESC_RETURN_TO_MAIN_MENU		; FIRST DISPLAY THE RETURN TO MAIN MENU MESSAGE
-		INT 21H
-											
-	CHAT_WAITING_FOR_ESC:					; WAIT FOR USER TO PRESS ESC AND THEN GO TO MAIN MENU
-		MOV AH, 0
-		INT 16H
-		CMP AH, 01H
-		JNE CHAT_WAITING_FOR_ESC
-
-        RET
-CHAT_SCREEN     ENDP
 
 ;NOTE!: THIS PROC USES AX AND ZERO FLAG
 ;RETURNS AH: SCANCODE, AL: ASCII, CLEARS ZERO FLAG IF THERE EXIST A KEY PRESSED
@@ -4857,6 +4877,10 @@ USERNAME    PROC       NEAR
 		INT 13H
 
         ; FIRST DISPLAY ENTER YOUR NAME
+		MOV AH, 2
+        MOV DL, 40
+        MOV DH, 20
+        INT 10H
         ;DISPLAY MESSAGE
         MOV AH, 9
         LEA DX, USER_NAME_ENTER_MES
@@ -4865,8 +4889,8 @@ USERNAME    PROC       NEAR
         ; SECOND DISPLAY PRESS ENTER TO CONTINUE
         ; MOVE CURSOR TO RIGHT LOCATION
         MOV AH, 2
-        MOV DL, 0
-        MOV DH, 2
+        MOV DL, 50
+        MOV DH, 24
         INT 10H
         ; DISPLAY MESSAGE
         MOV AH, 9
@@ -4875,10 +4899,11 @@ USERNAME    PROC       NEAR
 
         ; MOVE CURSOR TO RIGHT LOCATION
         MOV AH, 2
-        MOV DL, 0
-        MOV DH, 1
+        MOV DL, 55
+        MOV DH, 22
         INT 10H
 
+USER_NAME_LOOP5:
 		MOV SI, 0
 USER_NAME_LOOP1:     ; GET USER INPUT
         MOV AH, 0
@@ -4918,9 +4943,33 @@ USER_NAME_LOOP:     ; GET USER INPUT
 
         ; CHECK IF PRESSED ENTER AND AT LEAST 1 CHARACTER WAS ENTERED THEN MOVE TO MAIN MENU
         CMP AH, 1CH
-        JNE USER_NAME_CHECK
-        ; HERE EXIT USER NAME ENTRY SCREEN
-        JMP GO_TO_MAIN_MENU
+		; HERE EXIT USER NAME ENTRY SCREEN
+        JE GO_TO_MAIN_MENU
+        ; check it it's backspace then clear a character
+USER_NAME_CHECK2:
+		CMP AH, 0EH
+		JNE USER_NAME_CHECK
+		MOV AH, 3H
+		MOV BX, 0
+		INT 10H
+		DEC DL
+		MOV BX, 0
+		MOV AH, 2
+		INT 10H
+		MOV AH, 2
+		MOV DL, ' '
+		INT 21H
+		MOV AH, 3H
+		MOV BX, 0
+		INT 10H
+		DEC DL
+		MOV BX, 0
+		MOV AH, 2
+		INT 10H
+		CMP DL, 55
+		JE USER_NAME_LOOP5
+		DEC SI
+		JMP USER_NAME_LOOP
 
 USER_NAME_CHECK:
         CMP SI, 15
@@ -6183,4 +6232,330 @@ NO_NEED_CLEAR2:
         RET
 DRAW_HP_BAR2     ENDP
 ;-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+;------------------------------------------------------------Serial----------------------------------------------------------------------
+
+CHAT PROC NEAR
+	
+	;TEXT_MODE
+	MOV AL, 03H
+	MOV AH, 0
+	INT 10H
+	  
+	
+	MOV AH,6       				; FUNCTION 6
+	MOV AL,0       				; SCROLL BY 0 LINES   
+	MOV BH,CLR_ATTR_SEND     	; NORMAL VIDEO ATTRIBUTE  (BLUE)       
+	MOV CH,0       				; UPPER LEFT Y
+	MOV CL,0       				; UPPER LEFT X
+	MOV DH,11     				; LOWER RIGHT Y
+	MOV DL,79     				; LOWER RIGHT X 
+	INT 10H           
+
+	MOV AH,6       					; FUNCTION 6
+	MOV AL,0        				; SCROLL BY 0 LINES    
+	MOV BH,CLR_ATTR_RECEIVE      	; NORMAL VIDEO ATTRIBUTE  (RED)       
+	MOV CH,12       				; UPPER LEFT Y
+	MOV CL,0        				; UPPER LEFT X
+	MOV DH,24     					; LOWER RIGHT Y
+	MOV DL,79     					; LOWER RIGHT X 
+	INT 10H   
+
+
+
+	; MOV AH,2 
+    ; MOV DH,0                  ;MOVE CURSOR TO X,Y POSITION DH:Y DL:X
+    ; MOV DL,0
+    ; INT 10H                                                     
+    
+    ; MOV AX,0600H 
+    ; MOV BH,01FH 
+    ; MOV CX,0                  ;CLEARING TOP HALF IN BLUE
+    ; MOV DX,0C4FH 
+    ; INT 10H
+    
+    ; MOV AX,0600H 
+    ; MOV BH,04FH               ;CLEARING BOTTOM HALF IN RED
+    ; MOV CX,0C00H                                              
+    ; MOV DX,184FH 
+    ; INT 10H 
+
+	CALL UART_init
+	
+	
+CHAT_MAIN_LOOP:
+
+
+	CALL CHECK_KEY_PRESSED
+	JZ  CHAT_CHECK_DATA_RECEIVED					;IF THERE IS NO KEY PRESSED GO CHECK FOR RECEIVED DATA
+		CALL READ_KEY_PRESSED				;IF THE KEY PRESSED IS ESC --> SEND THE RECEIVER A FLAG THEN EXIT
+		CMP  PRESSED_KEY_SC, ESC_KEY
+		JE   CHAT_TERMINATE						
+											;ELSE: PRINT IT AND SEND IT THROUGH UART
+			;;;;;;;;;;;;;;;;;;;HERE PRINT IN THE SEND SCREEN;;;;;;;;;;;;;;;;;;;;;;;;;
+			 PRINT_SENT	PRESSED_KEY
+			; MOV AL, PRESSED_KEY
+			; MOV AH, 0
+			; CALL A7laChat
+			;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+			UART_SEND	PRESSED_KEY
+	
+	
+	
+	
+CHAT_CHECK_DATA_RECEIVED:
+	CALL UART_CHECK_KEY_RECEIVED
+	JZ CHAT_MAIN_LOOP						;IF THERE IS NO DATA RECEIVED REPEAT AGAIN
+		CALL UART_READ_KEY_RECEIVED		;ELSE: READ THE RECEIVED DATA AND PRINT IT
+			CMP RECEIVED_KEY, 1bh
+			JE CHAT_EXIT
+				;;;;;;;;;;;;;;;;;;;HERE PRINT IN THE RECEIVED SCREEN;;;;;;;;;;;;;;;;;;;;;;;;;
+				PRINT_RECEIVED RECEIVED_KEY
+				;MOV AL, PRESSED_KEY
+				;MOV AH, 0
+				;CALL A7laChat2
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	
+CHAT_MAIN_LOOP_END:	
+	;NOTHING HERE
+JMP CHAT_MAIN_LOOP
+
+CHAT_TERMINATE:
+	
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;SEND TERMINATE KEY;;;;;;;;;;;;;;;;;;;;;;;;;
+	UART_SEND	1bh	;LET THE ASCII 0 INDICATES TERMINATION
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	
+CHAT_EXIT:
+	;TEXT MODE & CLEAR SCREEN
+	MOV AL, 13H
+	MOV AH, 0
+	INT 10H
+	
+	MOV BX, 0
+	MOV AH, 2
+	MOV DX, 0A02H
+	INT 10H
+
+	;PRINT A MESSAGE TO ASK FOR A KEY TO EXIT
+	MOV AH, 9
+	MOV DX, OFFSET EXIT_MES
+	INT 21H
+	
+	;Press any key to exit
+	MOV AH , 0
+	INT 16h
+
+CHAT ENDP
+
+UART_init PROC NEAR
+	PUSHA
+	
+	;Set Divisor Latch Access Bit
+	MOV DX,3FBH 			; LINE CONTROL REGISTER
+	MOV AL,10000000B		;SET DIVISOR LATCH ACCESS BIT
+	OUT DX,AL				;OUT IT
+
+	;SET LSB BYTE OF THE BAUD RATE DIVISOR LATCH REGISTER.
+	MOV DX,3F8H			
+	MOV AL,0CH			
+	OUT DX,AL
+
+	;MSB BYTE OF THE BAUD RATE DIVISOR LATCH REGISTER.
+	MOV DX,3F9H
+	MOV AL,00H
+	OUT DX,AL
+	;SET PORT CONFIGURATION
+	MOV DX,3FBH
+	MOV AL,00011011B
+	;0:ACCESS TO RECEIVER BUFFER, TRANSMITTER BUFFER
+	;0:SET BREAK DISABLED
+	;011:EVEN PARITY
+	;0:ONE STOP BIT
+	;11:8BITS
+	OUT DX,AL
+
+	
+	POPA
+	RET
+UART_init ENDP
+
+;NOTE!: THESE TWO PROCs USE AX AND THE ZERO FLAG
+;RETURNS AH: SCANCODE, AL: ASCII, CLEARS ZERO FLAG IF THERE EXIST A KEY PRESSED
+CHECK_KEY_PRESSED PROC NEAR 
+	PUSHA
+	MOV AH,1
+	INT 16H
+	POPA
+	RET
+CHECK_KEY_PRESSED	ENDP
+
+READ_KEY_PRESSED PROC NEAR 
+	PUSHA
+	MOV AH,0
+	INT 16H
+	MOV PRESSED_KEY, AL			;MOV ASCII CODE IN PRESSED_KEY VARIABLE
+	MOV PRESSED_KEY_SC, AH		;MOV SCANCODE IN PRESSED_KEY_SC VARIABLE 
+	POPA
+	RET
+READ_KEY_PRESSED	ENDP
+
+;NOTE!: THIS PROC USES DX, AX AND THE ZERO FLAG IS AFFECTED
+;RETURNS CLEARS ZERO FLAG IF THE DATA IS READY
+UART_CHECK_KEY_RECEIVED PROC NEAR
+	PUSHA
+	;CHECK THAT DATA IS READY
+	MOV DX , 3FDH		; LINE STATUS REGISTER
+	IN AL , DX 
+  	TEST AL , 00000001B
+	POPA
+	RET
+UART_CHECK_KEY_RECEIVED ENDP
+
+UART_READ_KEY_RECEIVED PROC NEAR
+	PUSHA
+	;If Ready read the VALUE in Receive data register
+	MOV DX , 03F8H
+	IN AL , DX 
+	MOV RECEIVED_KEY , AL
+	POPA
+	RET
+UART_READ_KEY_RECEIVED ENDP
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;printing logic;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;printing logic;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;printing logic;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+A7laChat Proc near
+    
+    push ax
+    
+    cmp p1startx,windWidth
+    jae A7laChat_NewLine  
+    
+    cmp p1starty,windHeight/2-1
+    jb A7laChat_continue  
+     
+    dec p1starty 
+    mov ah,2 
+    mov dh,p1starty     ;Move Cursor to X,Y position dh:Y dl:X
+    mov dl,0
+    int 10h
+    
+    mov ah,6            ; function 6
+    mov al,1            ; scroll by 1 line    
+    mov bh,01Fh         ; normal video attribute         
+    mov ch,0            ; upper left Y
+    mov cl,0            ; upper left X
+    mov dh,11           ; lower right Y
+    mov dl,79           ; lower right X 
+    int 10h  
+                
+A7laChat_continue:
+         
+    mov ah,2 
+    mov dh,p1starty   ;Move Cursor to X,Y position dh:Y dl:X
+    mov dl,p1startx
+    int 10h
+    
+    pop ax 
+    
+    cmp ah,Esc_Key
+    jnz A7laChat_stay
+
+    ret
+     
+A7laChat_stay: 
+    
+    cmp ah,Enter_Key
+    jnz A7laChat_sameY  
+
+A7laChat_NewLine:
+    
+    inc p1starty
+    mov p1startx,0 
+    
+    ret   
+    
+A7laChat_sameY:
+    
+    mov ah,9          ;Display 
+    mov bh,0          ;Page 0
+    mov cx,1h         ;1 time 
+    mov bl,01Ch       ;White (F) on Blue(1) background 
+    int 10h
+
+    inc p1startx
+    
+    ret
+
+A7laChat endp
+
+ 
+A7laChat2 Proc near
+    
+    
+    push ax  
+    
+    cmp p2startx,windWidth
+    jae A7laChat2_NewLine2  
+    
+    cmp p2starty,windHeight-1
+    jb A7laChat2_continue2  
+     
+    dec p2starty 
+    mov ah,2 
+    mov dh,p2starty     ;Move Cursor to X,Y position dh:Y dl:X
+    mov dl,0
+    int 10h
+    
+    mov ah,6            ; function 6
+    mov al,1            ; scroll by 1 line    
+    mov bh,01Fh         ; normal video attribute         
+    mov ch,0            ; upper left Y
+    mov cl,0            ; upper left X
+    mov dh,11           ; lower right Y
+    mov dl,79           ; lower right X 
+    int 10h           
+                 
+A7laChat2_continue2:
+         
+    mov ah,2 
+    mov dh,p2starty   ;Move Cursor to X,Y position dh:Y dl:X
+    mov dl,p2startx
+    int 10h
+    
+    pop ax 
+    
+    cmp ah,Esc_Key
+    jnz A7laChat2_stay2
+
+    ret
+     
+A7laChat2_stay2: 
+    
+    cmp ah,Enter_Key
+    jnz A7laChat2_sameY2  
+
+A7laChat2_NewLine2:
+    
+    inc p2starty
+    mov p2startx,0 
+    
+    ret   
+    
+A7laChat2_sameY2:
+    
+    mov ah,9          ;Display 
+    mov bh,0          ;Page 0
+    mov cx,1h         ;1 time 
+    mov bl,049h       ;Blue (9) on Red(4) background 
+    int 10h
+
+    inc p2startx
+    
+    ret
+
+
+A7laChat2 endp
+
 END MAIN
