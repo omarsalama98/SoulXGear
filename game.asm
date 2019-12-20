@@ -71,9 +71,9 @@ p2HairClr     EQU 9
 ;------------------------------------------------------------HP----------------------------------------------------------------------
 SCREEN_WIDTH            EQU         1024
 SCREEN_HEIGHT           EQU         768
-MAX_HP                  EQU         20
-HALF_HP                 EQU         MAX_HP/2
-QUARTER_HP              EQU         MAX_HP/4
+MAX_HP_PROV             EQU         20
+HALF_HP                 EQU         MAX_HP_PROV/2
+QUARTER_HP              EQU         MAX_HP_PROV/4
 NAMES_DISTANCE          EQU         90
 HP_BAR_START_ROW        EQU         SCREEN_HEIGHT / 45
 HP_BAR_END_ROW          EQU         SCREEN_HEIGHT / 30
@@ -86,9 +86,21 @@ HP_BARS_END_LINE        EQU         HP_BAR_END_ROW + 5
 HP_PLAYER1_START_COL    EQU         5
 HP_PLAYER2_START_COL    EQU         (SCREEN_WIDTH - 5 - BAR_WIDTH)
 
-DMG_LEGSHOT             EQU         1
-DMG_BODYSHOT            EQU         2
-DMG_HEADSHOT            EQU         3
+;--------------------------------DETERMINANTS OF LEVELS-------------------------------------------------------------------------------------
+DMG_LEGSHOT_L1			EQU			1
+DMG_BODYSHOT_L1			EQU			2
+DMG_HEADSHOT_L1			EQU			3
+
+
+DMG_LEGSHOT_L2			EQU			2
+DMG_BODYSHOT_L2			EQU			3
+DMG_HEADSHOT_L2			EQU			4
+
+TIME_LEVEL1				EQU			60
+TIME_LEVEL2				EQU			30
+
+MAX_HP_LEVEL1			EQU			20
+MAX_HP_LEVEL2			EQU			15
 ;------------------------------------------------------------------------------------------------------------------------------------
 
 ;COLORS:
@@ -231,6 +243,14 @@ P2HeartsLeft  			DW  1
 EMSA7HEARTS				DW	0
 			
 P1P2Hearts    			DW  1
+
+DMG_LEGSHOT             DW         ?
+DMG_BODYSHOT            DW         ?
+DMG_HEADSHOT            DW         ?
+LEVEL					DB		   ?
+TIME 					DB		   ?
+TIME_DISPLAY			DB		   ' ', ' ', ' ', '$'
+PREV_TIME				DB		   ?
 ;---------------------------------------------------------------END GAME VARIABLES--------------------------------------------------------------
 ;------------------------------------------------------------Serial----------------------------------------------------------------------
 ;VARIABLES
@@ -249,13 +269,16 @@ P1P2Hearts    			DW  1
              
 	p2startx    		DB  0 
 	p2starty    		DB  (WindMid + 1)  
+	WAITING_FOR_USER	DB	'Waiting For Other Player To Enter His/Her Username!$'
 ;--------------------------------------------------------------Main Game Data--------------------------------------------------------------------
 
                             ; USER NAME DATA
 PLAYER1_NAME        DB      16 DUP('$')
-PLAYER2_NAME        DB      'Player 2$'         ; for now till phase 2
+PLAYER2_NAME        DB      16 DUP('$')         ; for now till phase 2
 USER_NAME_ENTER_MES DB      'Please Enter Your Name:$'
 USER_NAME_ENTER_KEY DB      'Press Enter Key To Continue$'
+LEVEL1_CHOICE		DB		'Press 1 For Level 1$'
+LEVEL2_CHOICE		DB		'Press 2 For Level 2$'
 ;-----------------------------------------------------------------------------------------------------------------------------
                             ; MAIN MENU DATA
 MAIN_MENU_START_GAME_COLOR        DB          ?
@@ -265,24 +288,24 @@ MAIN_MENU_CURRENT_STAT			  DB		  0		; WHICH OPTION HAS FOCUS NOW 0->START GAME, 
 ESC_RETURN_TO_MAIN_MENU			  DB		  'Press Esc To Return To Main Menu$'
 ;------------------------------------------------------------------------------------------------------------------------------
                                 ; HP BAR DATA
-MAX_HP                  EQU         20
 NAMES_DISTANCE          EQU         90
+MAX_HP                     DW         ?
 CLEAR_FIRST_LINE           DB         128 DUP(' ')
                            DB         '$'
 HP_BAR_PLAYERS_NAMES       DB          5 DUP (' ')
 HP_BAR_PLAYER1_NAME        DB          15 DUP (' ')
                            DB          NAMES_DISTANCE DUP(' ')
-                           DB          'Player 2'
+HP_BAR_PLAYER2_NAME        DB          15 DUP (' ')
                            DB          '$'
-PLAYER1_HP                 DW          MAX_HP
-PLAYER2_HP                 DW          MAX_HP
+PLAYER1_HP                 DW          ?
+PLAYER2_HP                 DW          ?
 PLAYER1_HEARTS             DW          3
 PLAYER2_HEARTS             DW          3
 GAME_OVER                  DW          0               ; 0->NOT OVER, 1->PLAYER1 WON, 2->PLAYER2 WON
 PLAYER1_WON_MES            DB         100 DUP('$')
-PLAYER2_WON_MES            DB          'Player 2 Won!$' 
+PLAYER2_WON_MES            DB         100 DUP('$')
 END_GAME_MES               DB          'Press Enter Key To Return To Main Menu$'
-
+DRAW_MES				   DB		   'Game Was A Draw!$'
 ;-----------------------------------------------------------------------------GAME CODE------------------------------------------------------------------
 .CODE
 MAIN PROC NEAR
@@ -294,7 +317,11 @@ MAIN PROC NEAR
 
     CALL USERNAME           ; GET USERNAME
 
-    CALL LOAD_USER_NAME
+	CALL UART_init
+
+	CALL SEND_USERNAME
+
+	CALL LOAD_USER_NAME
 
 RETURN_TO_MAIN_MENU:            ; DISPLAY MAIN MENU
         CALL MAIN_MENU
@@ -308,11 +335,34 @@ RETURN_TO_MAIN_MENU:            ; DISPLAY MAIN MENU
 
 
 START_CHAT:
+		MOV AL, 1
+		MOV CURSOR_SEND_Y, AL
+		MOV AL, 0
+		MOV CURSOR_SEND_X, AL
+	
+		MOV AL, 13
+		MOV CURSOR_RECEIVE_Y, AL
+		MOV AL, 0
+		MOV CURSOR_RECEIVE_X, AL
+	
+		MOV AL, 0
+		MOV p1startx, AL
+		MOV AL, 1
+		MOV p1starty, AL
+
+		MOV AL, 0
+		MOV p2startx, AL
+		MOV AL,  (WindMid + 1)
+		MOV p2starty, AL
+
         CALL CHAT                ; OPEN CHAT SCREEN AND WHEN DONE RETURN TO MAIN MENU
         JMP RETURN_TO_MAIN_MENU
 
 ;-----------------------------------------------------------------------------SET VIDEO MODE--------------------------------------------------------------
 START_GAME:
+
+	CALL SET_LEVEL
+
     MOV AX, 4F02H
 	MOV BX, 105H 
 	INT 10H
@@ -320,6 +370,29 @@ START_GAME:
 	; mov ah, 0
 	; int 10h
 ;--------------------------------------------------------------------------END SET VIDEO MODE--------------------------------------------------------------
+
+	MOV AL, LEVEL
+	CMP AL, 2
+	JE MAIN_LEVEL2
+	; LEVEL 1 PICKED
+	MOV AX, DMG_LEGSHOT_L1
+	MOV DMG_LEGSHOT, AX
+	MOV AX, DMG_BODYSHOT_L1
+	MOV DMG_BODYSHOT, AX
+	MOV AX, DMG_HEADSHOT_L1
+	MOV DMG_HEADSHOT, AX
+	JMP MAIN_LEVEL_SET
+
+MAIN_LEVEL2:
+	; LEVEL 2 PICKED
+	MOV AX, DMG_LEGSHOT_L2
+	MOV DMG_LEGSHOT, AX
+	MOV AX, DMG_BODYSHOT_L2
+	MOV DMG_BODYSHOT, AX
+	MOV AX, DMG_HEADSHOT_L2
+	MOV DMG_HEADSHOT, AX
+
+MAIN_LEVEL_SET:
 
     MOV P1_X, START_X_1
     MOV P1_Y, START_Y
@@ -385,9 +458,23 @@ START_GAME:
 	
 
 ;-----------------------------------------------------------------------------MAIN LOOP--------------------------------------------------------------------
-
 	
+	CALL INIT_TIME
+
 	MAIN_LOOP: 
+
+		CALL DRAW_TIME
+
+		MOV AL, TIME
+		CMP AL, 0
+		JE TIME_OUT
+
+		MOV BX, 0
+		MOV AH, 2
+		MOV DX, 0040H
+		INT 10H
+
+
 ;-----------------------------------------------------------------------------REPLACE PLAYER 1--------------------------------------------------------------
 		;REPLACE PLAYERS IF THEY WERE JUMPING
 		REPLACE_P1:
@@ -953,6 +1040,30 @@ START_GAME:
         MOV GAME_OVER, AX
         JMP MAIN_LOOP
 
+TIME_OUT:
+		MOV AX, PLAYER1_HEARTS
+		CMP AX, PLAYER2_HEARTS
+		JA PLAYER1_WON_FINAL
+		JB PLAYER2_WON_FINAL
+		MOV AX, PLAYER1_HP
+		CMP AX, PLAYER2_HP
+		JA PLAYER1_WON_FINAL
+		JB PLAYER2_WON_FINAL
+		; BUT FIRST CLEAR SCREEN JUST TO LOOK COOL
+        MOV AX, 4F02H
+	    MOV BX, 105H			
+	    INT 10H
+
+		MOV BX, 0
+		MOV AH, 2
+		MOV DX, 1532H
+		INT 10H
+
+        MOV AH, 9
+        LEA DX, DRAW_MES
+        INT 21H
+        JMP EXIT
+
 PLAYER2_WON:
         ; PLAYER 2 WON
         MOV BX, PLAYER1_HEARTS
@@ -1014,6 +1125,42 @@ PLAYER2_WON_FINAL:
 	    MOV BX, 105H			
 	    INT 10H
 
+        LEA SI, HP_BAR_PLAYER2_NAME
+        LEA DI, PLAYER2_WON_MES
+        MOV CX, 15
+        REP MOVSB
+
+		MOV AL, ' '
+		MOV [DI], AL
+
+		INC DI
+        MOV AL, 'W'
+        MOV [DI], AL
+
+        INC DI
+        MOV AL, 'o'
+        MOV [DI], AL
+
+        INC DI
+        MOV AL, 'n'
+        MOV [DI], AL
+
+        INC DI
+        MOV AL, '!'
+        MOV [DI], AL
+
+		LEA SI, PLAYER2_WON_MES
+		MOV CX, 16
+CLEANING_WIN_MESS:
+		MOV AL, [SI]
+		CMP AL, '$'
+		JNE CLEAN_WORD_WIN
+		MOV AL, ' '
+		MOV [SI], AL
+		CLEAN_WORD_WIN:
+			INC SI
+			LOOP CLEANING_WIN_MESS
+
 		MOV BX, 0
 		MOV AH, 2
 		MOV DX, 1532H
@@ -1022,6 +1169,7 @@ PLAYER2_WON_FINAL:
         MOV AH, 9
         LEA DX, PLAYER2_WON_MES
         INT 21H
+        
         JMP EXIT
 
 EXIT_BY_ESC:
@@ -4995,6 +5143,73 @@ GO_TO_MAIN_MENU:
         RET
 USERNAME    ENDP
 
+SEND_USERNAME	PROC	NEAR
+
+		; Activate Video mode
+		MOV AX, 4F02H
+		MOV BX, 105H			; FIRST ACTIVATE VIDEO MODE TO CLEAR SCREEN TO DRAW ON CLEAN GROUND
+		INT 10H
+
+        ; Activate TEXT mode
+		MOV AX, 0003H
+        MOV BX, 0
+		INT 13H
+
+        ; FIRST DISPLAY ENTER YOUR NAME
+		MOV AH, 2
+        MOV DL, 38
+        MOV DH, 20
+        INT 10H
+        ;DISPLAY MESSAGE
+        MOV AH, 9
+        LEA DX, WAITING_FOR_USER
+        INT 21H
+
+
+SEND_USERNAME_WAITING2:
+		MOV AL, 0
+		MOV PRESSED_KEY, AL
+		UART_SEND PRESSED_KEY
+		MOV DX , 3FDH		; LINE STATUS REGISTER
+		IN AL , DX 
+  		TEST AL , 00000001B
+		JZ SEND_USERNAME_WAITING2
+
+		MOV DX, 03F8H
+		IN AL, DX
+
+		LEA SI, PLAYER1_NAME
+		LEA DI, PLAYER2_NAME
+
+		MOV CX, 15
+
+SEND_USERNAME_LOOP:
+
+		MOV AL, [SI]
+		MOV PRESSED_KEY, AL
+		UART_SEND PRESSED_KEY
+
+
+		MOV DX , 3FDH		; LINE STATUS REGISTER
+SEND_USERNAME_WAITING:
+		IN AL , DX 
+  		TEST AL , 00000001B
+		JZ SEND_USERNAME_WAITING
+
+		MOV DX, 03F8H
+		IN AL, DX
+		CMP AL, 0
+		JE SEND_USERNAME_WAITING
+		MOV [DI], AL
+
+		INC SI
+		INC DI
+
+		LOOP SEND_USERNAME_LOOP
+
+		RET
+SEND_USERNAME	ENDP
+
 LOAD_USER_NAME  PROC    NEAR
 
         LEA DI, HP_BAR_PLAYER1_NAME
@@ -5019,6 +5234,17 @@ LOAD_USER_NAME  PROC    NEAR
                 OK_LETTER:
                         INC DI 
                         LOOP LOAD_NAME_2
+
+		LEA DI, HP_BAR_PLAYER2_NAME
+        LEA SI, PLAYER2_NAME
+
+        MOV CX, 16
+        LOAD_NAME_3:
+                MOV AL, [SI]
+                MOV [DI], AL
+                INC DI
+                INC SI
+                LOOP LOAD_NAME_3
 
         RET
 LOAD_USER_NAME  ENDP
@@ -6298,10 +6524,7 @@ CHAT PROC NEAR
     ; MOV BH,04FH               ;CLEARING BOTTOM HALF IN RED
     ; MOV CX,0C00H                                              
     ; MOV DX,184FH 
-    ; INT 10H 
-
-	CALL UART_init
-	
+    ; INT 10H 	
 	
 CHAT_MAIN_LOOP:
 
@@ -6577,5 +6800,132 @@ A7laChat2_sameY2:
 
 
 A7laChat2 endp
+
+SET_LEVEL	PROC	NEAR
+
+		MOV AX, 4F02H
+		MOV BX, 105H 
+		INT 10H
+
+		MOV BX, 0
+		MOV AH, 2
+		MOV DX, 1334H
+		INT 10H
+
+		MOV AH, 9
+		LEA DX, LEVEL1_CHOICE
+		INT 21H
+
+		MOV BX, 0
+		MOV AH, 2
+		MOV DX, 1634H
+		INT 10H
+
+		MOV AH, 9
+		LEA DX, LEVEL2_CHOICE
+		INT 21H
+
+		MOV AH, 0
+		INT 16H
+
+		CMP AL, '1'
+		JNE LEVEL2_PICKED
+		MOV AL, 1
+		MOV LEVEL, AL
+
+		MOV BX, MAX_HP_LEVEL1
+
+		JMP SET_LEVEL_END
+
+LEVEL2_PICKED:
+		MOV AL, 2
+		MOV LEVEL, AL
+
+		MOV BX, MAX_HP_LEVEL2
+
+SET_LEVEL_END:
+		MOV MAX_HP, BX
+		MOV PLAYER1_HP, BX
+		MOV PLAYER2_HP, BX
+		RET
+SET_LEVEL	ENDP
+
+INIT_TIME	PROC	NEAR
+
+		MOV AH,2CH    	; To get System Time
+		INT 21H			; Seconds is in DH
+		DEC DH
+		INC TIME
+		MOV PREV_TIME, DH
+
+		MOV AL, LEVEL
+		CMP AL, 1
+		JNE INIT_TIME_LEVEL_2
+		MOV AL, TIME_LEVEL1
+		MOV TIME, AL
+		JMP INIT_TIME_END
+
+INIT_TIME_LEVEL_2:
+		MOV AL, TIME_LEVEL2
+		MOV TIME, AL
+
+INIT_TIME_END:
+		RET
+INIT_TIME	ENDP
+
+DRAW_TIME	PROC	NEAR
+
+		MOV AH,2CH    	; To get System Time
+		INT 21H			; Seconds is in DH
+		CMP DH, PREV_TIME
+		JE DRAW_TIME_END_2
+
+		MOV PREV_TIME, DH
+		DEC TIME
+
+		MOV BX, 0
+		MOV AH, 2
+		MOV DX, 0040H
+		INT 10H
+
+		; TURN WORD IN CURRENT TO STRING IN OUTPUT AND DISPLAY IT
+            ; FIRST MAKE BX POINT TO OUTPUT
+            LEA BX, TIME_DISPLAY
+            ; THEN MAKE AX HOLD VALUE
+            MOV AL, TIME
+			MOV AH, 0
+            ; THEN KEEP DIVIDING TILL THERE IS 0 IN AX
+            MOV SI, 3
+
+        DRAW_TIME_LOOP:
+                MOV DX, 0
+                MOV DI, 10
+                DIV DI
+                
+                ADD DL, 48
+                MOV [BX][SI]-1, DL
+                DEC SI
+                JNZ DRAW_TIME_LOOP
+
+            ; Clean output of trailing Zeros
+            MOV CX, 2
+            LEA BX, TIME_DISPLAY
+        DRAW_TIME_CLEAN:
+                MOV AL, [BX]
+                SUB AL, 48
+                JNZ DRAW_TIME_END
+                MOV AL, 32
+                MOV [BX], AL
+                INC BX
+                LOOP DRAW_TIME_CLEAN
+
+            ; DISPLAY MESSAGE WITH INT
+DRAW_TIME_END:
+            MOV AH, 9
+            LEA DX, TIME_DISPLAY
+            INT 21H
+DRAW_TIME_END_2:
+		RET
+DRAW_TIME	ENDP
 
 END MAIN
