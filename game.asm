@@ -254,7 +254,7 @@ PREV_TIME				DB		   ?
 ;---------------------------------------------------------------END GAME VARIABLES--------------------------------------------------------------
 ;------------------------------------------------------------Serial----------------------------------------------------------------------
 ;VARIABLES
-	EXIT_MES 			DB 'Press Any Key To Return To Main Menu','$'
+	EXIT_MES 			DB 'Returning To Main Menu In 5 Secs!','$'
 	INGAME_EXIT_MESS	DB 'Press Esc Key to Quit Game!$'
 	PRESSED_KEY			DB ?
 	PRESSED_KEY_SC		DB ? ;PRESSED KEY SCANCODE
@@ -276,9 +276,11 @@ PREV_TIME				DB		   ?
 	PRESSED_ESC			DB  0
 	IN_ASCII			DB  ?
 
-	QUIT_NOT_BY_YOU		DB	'Other Player Quit Game!        $'
+	QUIT_NOT_BY_YOU		DB	'  Other Player Quit Game!$'
 	WAIT_FOR_LEVEL		DB	'Waiting For Other Player To Pick Level!$'
 	WHAT_TO_DO			DB	 ?
+	GOT_GAME_INV		DB	 0
+	GOT_CHAT_INV		DB	 0
 	; 0 -> NOTHING
 	; 1 -> GAME WITH PLAYER 1 ADMIN
 	; 2 -> GAME WITH PLAYER 2 ADMIN
@@ -332,8 +334,8 @@ PLAYER2_HEARTS             DW          3
 GAME_OVER                  DW          0               ; 0->NOT OVER, 1->PLAYER1 WON, 2->PLAYER2 WON
 PLAYER1_WON_MES            DB         100 DUP('$')
 PLAYER2_WON_MES            DB         100 DUP('$')
-END_GAME_MES               DB          'Press Enter Key To Return To Main Menu$'
-DRAW_MES				   DB		   'Game Was A Draw!$'
+END_GAME_MES               DB          'Returning To Main Menu In 5 Secs!$'
+DRAW_MES				   DB		   '   Game Was A Draw!$'
 ;-----------------------------------------------------------------------------GAME CODE------------------------------------------------------------------
 .CODE
 MAIN PROC NEAR
@@ -573,6 +575,20 @@ MAIN_LEVEL_SET:
 	CALL CLEAR_UART_BUFFER
 
 	CALL INIT_TIME
+
+; 	MOV AL, WHAT_TO_DO
+; 	CMP AL, 1
+; 	JNE MAIN_LOOP
+
+; 	MOV AH,2CH    	; To get System Time
+; 	INT 21H			; Seconds is in DH
+; 	MOV BL, DH
+
+; BEFORE_MAIN_GAME_DELAY:
+; 		MOV AH,2CH    	; To get System Time
+; 		INT 21H			; Seconds is in DH
+; 		CMP BL, DH
+; 		JE BEFORE_MAIN_GAME_DELAY
 
 	MAIN_LOOP: 
 
@@ -1168,12 +1184,16 @@ INLINE_REC:
 		CMP RECEIVED_KEY, 27
 		JE EXIT_BY_ESC
 
+		CMP RECEIVED_KEY, 1
+		JE MAIN_LOOP_END
+
 		CALL DISPLAY_PLAYER2_ENTRY
 		JMP MAIN_LOOP_END
 
 INLINE_SEND:                              
 
 		UART_SEND	IN_ASCII
+		CALL CONFIRMATION
 
 		CALL DISPLAY_PLAYER1_ENTRY
 ;------------------------------------------------------------------------------END MAIN LOOP------------------------------------------------------------
@@ -1359,7 +1379,7 @@ EXIT:
 
 	MOV BX, 0
 	MOV AH, 2
-	MOV DX, 1729H
+	MOV DX, 172DH
 	INT 10H
 
     ;PRESS ENTER TO CONTINUE
@@ -1367,11 +1387,17 @@ EXIT:
     LEA DX, END_GAME_MES
     INT 21H
 
-EXIT_ENTER_LOOP:
-	MOV AH , 0
-	INT 16h
-    CMP AH, 1CH
-    JNE EXIT_ENTER_LOOP
+	MOV AH,2CH    	; To get System Time
+	INT 21H			; Seconds is in DH
+	MOV RECEIVED_KEY, DH
+	MOV AL, 5
+	ADD RECEIVED_KEY, AL
+MAIN_GAME_EXIT_DELAY:
+	MOV AH,2CH    	; To get System Time
+	INT 21H			; Seconds is in DH
+	CMP DH, RECEIVED_KEY
+	JB MAIN_GAME_EXIT_DELAY
+
     JMP RETURN_TO_MAIN_MENU
 QUIT_GAME:      ; EXIT WITH ERROR LEVEL 0
         ; BUT FIRST CLEAR SCREEN JUST TO LOOK COOL
@@ -5522,14 +5548,24 @@ UP_PRESSED:
 		JMP GO_TO_MAIN_PROG
 
 SEND_GAME_ACC:
+		MOV AL, GOT_GAME_INV
+		CMP AL, 1
+		JNE GO_TO_MAIN_PROG
 		UART_SEND 3
+		MOV AL, 0
+		MOV GOT_GAME_INV, AL
 		MOV AL, 2
 		MOV WHAT_TO_DO, AL
 
 		JMP GO_TO_MAIN_PROG
 
 SEND_CHAT_ACC:
+		MOV AL, GOT_CHAT_INV
+		CMP AL, 1
+		JNE GO_TO_MAIN_PROG
 		UART_SEND 4
+		MOV AL, 0
+		MOV GOT_CHAT_INV, AL
 		MOV AL, 4
 		MOV WHAT_TO_DO, AL
 
@@ -6803,7 +6839,7 @@ CHAT_EXIT:
 	
 	MOV BX, 0
 	MOV AH, 2
-	MOV DX, 0A02H
+	MOV DX, 0A03H
 	INT 10H
 
 	;PRINT A MESSAGE TO ASK FOR A KEY TO EXIT
@@ -6812,8 +6848,16 @@ CHAT_EXIT:
 	INT 21H
 	
 	;Press any key to exit
-	MOV AH , 0
-	INT 16h
+	MOV AH,2CH    	; To get System Time
+	INT 21H			; Seconds is in DH
+	MOV RECEIVED_KEY, DH
+	MOV AL, 5
+	ADD RECEIVED_KEY, AL
+CHAT_EXIT_DELAY:
+	MOV AH,2CH    	; To get System Time
+	INT 21H			; Seconds is in DH
+	CMP DH, RECEIVED_KEY
+	JB CHAT_EXIT_DELAY
 
 CHAT ENDP
 
@@ -7434,6 +7478,32 @@ CLEAR_UART_BUFFER	ENDP
 
 INVITES_HANDLING	PROC	NEAR
 
+		MOV AL, GOT_GAME_INV
+		CMP AL, 1
+		JNE INVITES_HANDLING_NEXT_CHECK
+		MOV BX, 0
+		MOV AH, 2
+		MOV DX, 2C05H
+		INT 10H
+
+		MOV AH, 9
+		LEA DX, INV_GAME
+		INT 21H
+
+INVITES_HANDLING_NEXT_CHECK:
+		MOV AL, GOT_CHAT_INV
+		CMP AL, 1
+		JNE INVITES_HANDLING_START
+		MOV BX, 0
+		MOV AH, 2
+		MOV DX, 2E05H
+		INT 10H
+
+		MOV AH, 9
+		LEA DX, INV_CHAT
+		INT 21H
+
+INVITES_HANDLING_START:
 		;Check that Data is Ready
 		mov dx , 3FDH		; Line Status Register
 	    in al , dx 
@@ -7445,7 +7515,7 @@ INVITES_HANDLING	PROC	NEAR
 
 		CMP AL, 0
 		JNE NOT_GAME_INV
-		
+
 		MOV BX, 0
 		MOV AH, 2
 		MOV DX, 2C05H
@@ -7454,6 +7524,10 @@ INVITES_HANDLING	PROC	NEAR
 		MOV AH, 9
 		LEA DX, INV_GAME
 		INT 21H
+
+		MOV AL, 1
+		MOV GOT_GAME_INV, AL
+
 		JMP INVITES_HANDLING_END
 
 NOT_GAME_INV:
@@ -7468,6 +7542,10 @@ NOT_GAME_INV:
 		MOV AH, 9
 		LEA DX, INV_CHAT
 		INT 21H
+
+		MOV AL, 1
+		MOV GOT_CHAT_INV, AL
+
 		JMP INVITES_HANDLING_END
 
 NOT_CHAT_INV:
