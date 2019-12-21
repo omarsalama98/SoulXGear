@@ -518,8 +518,7 @@ MAIN_LEVEL_SET:
     
     MOV P1_stance, STNDS
     MOV P2_stance, STNDS 
-    
-    
+
 ;-------------------------------------------------------------------------- LOAD ENVIROMENT---------------------------------------------------------------
 	LEA BX, GroundXY
     MOV AX, 601
@@ -676,14 +675,11 @@ MAIN_LEVEL_SET:
 	
 ;---------------------------------------------------------------------------------GET KEY--------------------------------------------------------------------			
 		GET_KEY:
-			CALL GET_KEY_PRESSED
-			JNZ CLR_BUFFER				;If zero flag is 1(jz = true) -> nothing is pressed else -> a key is pressed
-			
 			;Check that Data is Ready
 				mov dx , 3FDH		; Line Status Register
 				in al , dx 
 				test al , 1
-				JZ MAIN_LOOP_END                                    ;Not Ready
+				JZ GET_KEY_FLAG                                    ;Not Ready
 		;If Ready read the VALUE in Receive data register
 				mov dx , 03F8H
 				in al , dx 
@@ -696,6 +692,11 @@ MAIN_LEVEL_SET:
 
 			JMP  CHECK_P2_R
 			;NOW AX = VALUE OF THE KEY
+
+		GET_KEY_FLAG:
+			CALL GET_KEY_PRESSED
+			JZ MAIN_LOOP_END				;If zero flag is 1(jz = true) -> nothing is pressed else -> a key is pressed
+
 		CLR_BUFFER:
 			MOV IN_KEY, AH
 			MOV IN_ASCII, AL
