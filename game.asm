@@ -120,11 +120,11 @@ MAX_HP_LEVEL2			EQU			15
 
 ;KEYS 					SCAN CODES
 ESC_KEY 				EQU 01H
-W_KEY 					EQU 11H
-A_KEY 					EQU 1EH
-S_KEY 					EQU 1FH
-D_KEY 					EQU 20H
-SPACE_KEY 				EQU 39H
+W_KEY 					EQU 48H		; jump
+A_KEY 					EQU 4BH		; move left
+S_KEY 					EQU 50H		; duck
+D_KEY 					EQU 4DH		; move right
+SPACE_KEY 				EQU 39H		
 UP_KEY 					EQU 48H
 RIGHT_KEY 				EQU 4DH
 DOWN_KEY 				EQU 50H
@@ -132,11 +132,11 @@ LEFT_KEY 				EQU 4BH
 I_KEY 					EQU 17H
 O_KEY 					EQU 18H
 P_KEY 					EQU 19H
-V_KEY 					EQU 2FH
-B_KEY 					EQU 30H
-N_KEY 					EQU 31H
+V_KEY 					EQU 35H		; head shot
+B_KEY 					EQU 37H		; body shot
+N_KEY 					EQU 4AH		; leg shot
 L_KEY 					EQU 26H
-Q_KEY 					EQU 10H
+Q_KEY 					EQU 4EH		; block
 
 
 
@@ -313,6 +313,7 @@ MAIN_MENU_CURRENT_STAT			  DB		  0		; WHICH OPTION HAS FOCUS NOW 0->START GAME, 
 ESC_RETURN_TO_MAIN_MENU			  DB		  'Press Esc To Return To Main Menu$'
 INV_GAME						  DB		  'Other Player Invited You To A Game! Press 1 to Accept!                   $'
 INV_CHAT						  DB		  'Other Player Invited You To Chat! Press 2 to Accept!                     $'
+GAME_CONTROLS					  DB		  'Game Controls: Up -> Jump, Down -> Crouch, Right -> Move Right, Left -> Move Left, (Keypad)/ -> Headshot, (Keypad)* -> Bodyshot (Keypad)- -> Legshot, (Keypad)+ -> Block$'
 ; 0 -> NO ACTION
 ; 1 -> YOU SENT GAME INVITE
 ; 2 -> YOU SEND CHAT INVITE
@@ -700,7 +701,6 @@ MAIN_LEVEL_SET:
 			MOV IN_ASCII, AL
 			CALL CLEARKEYBOARDBUFFER	;Here a key is read from the keyboard buffer and put in AX then we clear the keyboard buffer
 ;---------------------------------------------------------------------------------END GET KEY----------------------------------------------------------------
-
 
 ;------------------------------------------------------------------------------CHECK PLAYER 1 INPUTS----------------------------------------------------------		
 			
@@ -5485,7 +5485,7 @@ MAIN_MENU_CHAT_X                  EQU         (SCREEN_WIDTH/2)-(75)
 MAIN_MENU_CHAT_Y                  EQU         (SCREEN_HEIGHT/2)-(25)
 MAIN_MENU_QUIT_X                  EQU         (SCREEN_WIDTH/2)-(75)
 MAIN_MENU_QUIT_Y                  EQU         (SCREEN_HEIGHT/2)+(75)
-NOTIFICATIONS_BAR_LOCATION		  EQU		  (SCREEN_HEIGHT) - (SCREEN_HEIGHT / 10)
+NOTIFICATIONS_BAR_LOCATION		  EQU		  (SCREEN_HEIGHT) - (SCREEN_HEIGHT / 7)
 
 MAIN_MENU_STATIC_COLOR            EQU         3
 MAIN_MENU_FOCUS_COLOR             EQU         5
@@ -5629,6 +5629,15 @@ NOTIFICATIONS_BAR		PROC	NEAR
 		NOTIFICATIONS_BAR_LOOP:
 			INT 10H
 			LOOP NOTIFICATIONS_BAR_LOOP
+
+		MOV BX, 0
+		MOV AH, 2
+		MOV DX, 2E00H
+		INT 10H
+
+		MOV AH, 9
+		LEA DX, GAME_CONTROLS
+		INT 21H
 
 		RET
 NOTIFICATIONS_BAR		ENDP
@@ -7483,7 +7492,7 @@ INVITES_HANDLING	PROC	NEAR
 		JNE INVITES_HANDLING_NEXT_CHECK
 		MOV BX, 0
 		MOV AH, 2
-		MOV DX, 2C05H
+		MOV DX, 2A05H
 		INT 10H
 
 		MOV AH, 9
@@ -7496,7 +7505,7 @@ INVITES_HANDLING_NEXT_CHECK:
 		JNE INVITES_HANDLING_START
 		MOV BX, 0
 		MOV AH, 2
-		MOV DX, 2E05H
+		MOV DX, 2C05H
 		INT 10H
 
 		MOV AH, 9
@@ -7518,7 +7527,7 @@ INVITES_HANDLING_START:
 
 		MOV BX, 0
 		MOV AH, 2
-		MOV DX, 2C05H
+		MOV DX, 2A05H
 		INT 10H
 
 		MOV AH, 9
@@ -7536,7 +7545,7 @@ NOT_GAME_INV:
 
 		MOV BX, 0
 		MOV AH, 2
-		MOV DX, 2E05H
+		MOV DX, 2C05H
 		INT 10H
 
 		MOV AH, 9
