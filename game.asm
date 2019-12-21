@@ -255,6 +255,7 @@ PREV_TIME				DB		   ?
 ;------------------------------------------------------------Serial----------------------------------------------------------------------
 ;VARIABLES
 	EXIT_MES 			DB 'Press Any Key To Return To Main Menu','$'
+	INGAME_EXIT_MESS	DB 'Press Esc Key to Quit Game!$'
 	PRESSED_KEY			DB ?
 	PRESSED_KEY_SC		DB ? ;PRESSED KEY SCANCODE
 	RECEIVED_KEY 		DB ?
@@ -270,6 +271,11 @@ PREV_TIME				DB		   ?
 	p2startx    		DB  0 
 	p2starty    		DB  (WindMid + 1)  
 	WAITING_FOR_USER	DB	'Waiting For Other Player To Enter His/Her Username!$'
+
+	PRESSED_ESC			DB  0
+	IN_ASCII			DB  ?
+
+	QUIT_NOT_BY_YOU		DB	'Other Player Quit Game!$'
 ;--------------------------------------------------------------Main Game Data--------------------------------------------------------------------
 
                             ; USER NAME DATA
@@ -279,6 +285,20 @@ USER_NAME_ENTER_MES DB      'Please Enter Your Name:$'
 USER_NAME_ENTER_KEY DB      'Press Enter Key To Continue$'
 LEVEL1_CHOICE		DB		'Press 1 For Level 1$'
 LEVEL2_CHOICE		DB		'Press 2 For Level 2$'
+PLAYER1_INLINE_START		EQU		2B00H
+PLAYER2_INLINE_START		EQU		2E00H
+PLAYER1_LINE_1		DB		128 DUP(' ')
+					DB         '$'
+PLAYER1_LINE_2		DB		128 DUP(' ')
+					DB         '$'
+PLAYER2_LINE_1		DB		128 DUP(' ')
+					DB         '$'
+PLAYER2_LINE_2		DB		128 DUP(' ')
+					DB         '$'
+PLAYER1_INLINE_Y	DB		2BH
+PLAYER2_INLINE_Y	DB		2EH
+PLAYER1_INLINE_X	DB		0
+PLAYER2_INLINE_X	DB		0
 ;-----------------------------------------------------------------------------------------------------------------------------
                             ; MAIN MENU DATA
 MAIN_MENU_START_GAME_COLOR        DB          ?
@@ -323,6 +343,8 @@ MAIN PROC NEAR
 
 	CALL LOAD_USER_NAME
 
+	CALL CLEAR_UART_BUFFER
+
 RETURN_TO_MAIN_MENU:            ; DISPLAY MAIN MENU
         CALL MAIN_MENU
 
@@ -360,6 +382,9 @@ START_CHAT:
 
 ;-----------------------------------------------------------------------------SET VIDEO MODE--------------------------------------------------------------
 START_GAME:
+
+	MOV AL, 0
+	MOV PRESSED_ESC, AL
 
 	CALL SET_LEVEL
 
@@ -441,6 +466,8 @@ MAIN_LEVEL_SET:
     MOV GAME_OVER, AX
 
     CALL HP_BAR_FUNCTION
+
+	CALL INLINE_CHAT_INIT
 
     MOV BX, 3
     MOV PLAYER1_HEARTS, BX
@@ -546,7 +573,7 @@ MAIN_LEVEL_SET:
 				MOV P2_stance, STNDS
 				MOV JUMP_COUNTER_UP2, 0
 				MOV JUMP_COUNTER_DN2, 0
-;-----------------------------------------------------------------------------END REPLACE PLAYER2 ------------------------------------------------------------
+;-----------------------------------------------------------------------------END REPLACE PLAYER ------------------------------------------------------------
 
 
 	
@@ -554,11 +581,12 @@ MAIN_LEVEL_SET:
 		GET_KEY:
 			CALL GET_KEY_PRESSED
 			JNZ CLR_BUFFER				;If zero flag is 1(jz = true) -> nothing is pressed else -> a key is pressed
-			JMP  MAIN_LOOP_END
+			JMP  START_INLINE
 			;NOW AX = VALUE OF THE KEY
 		CLR_BUFFER:
 			MOV IN_KEY, AH
-			CALL CLEARKEYBOARDBUFFER	;Here a key is red from the keyboard buffer and put in AX then we clear the keyboard buffer
+			MOV IN_ASCII, AL
+			CALL CLEARKEYBOARDBUFFER	;Here a key is read from the keyboard buffer and put in AX then we clear the keyboard buffer
 ;---------------------------------------------------------------------------------END GET KEY----------------------------------------------------------------
 
 
@@ -1011,11 +1039,33 @@ MAIN_LEVEL_SET:
 
 ;--------------------------------------------------------------------------------EXIT-------------------------------------------------------------------
 		CHECK_ESC:                                                                                                                                
-			CMP IN_KEY, ESC_KEY                                                                                                                  
-			JZ EXIT_BY_ESC                                                                                                                               
+			CMP IN_KEY, ESC_KEY   
+			JNE START_INLINE 
+
+			UART_SEND	1bh	;LET THE ASCII 0 INDICATES TERMINATION
+
+			MOV AL, 1
+			MOV PRESSED_ESC, AL 
+			                                                                                                              
+			JMP EXIT_BY_ESC                                                                                                                               
 ;--------------------------------------------------------------------------------EXIT-------------------------------------------------------------------
 
+;--------------------------------------------------------------------------------INLINE ENTRY-------------------------------------------------------------------
+START_INLINE:
 
+		CALL UART_CHECK_KEY_RECEIVED
+		JZ NOT_RECEIVED						;IF THERE IS NO DATA RECEIVED REPEAT AGAIN
+		CALL UART_READ_KEY_RECEIVED		;ELSE: READ THE RECEIVED DATA AND PRINT IT
+			CMP RECEIVED_KEY, 1bh
+			JE EXIT_BY_ESC
+
+		CALL DISPLAY_PLAYER2_ENTRY
+
+NOT_RECEIVED:                              
+
+		UART_SEND	IN_ASCII
+
+		CALL DISPLAY_PLAYER1_ENTRY
 ;------------------------------------------------------------------------------END MAIN LOOP------------------------------------------------------------
 		MAIN_LOOP_END:	
 			;CALL DELAY
@@ -1038,6 +1088,7 @@ MAIN_LEVEL_SET:
         CALL DRAW_HP_BAR2
         MOV AX, 0
         MOV GAME_OVER, AX
+
         JMP MAIN_LOOP
 
 TIME_OUT:
@@ -1177,6 +1228,20 @@ EXIT_BY_ESC:
         MOV AX, 4F02H
 	    MOV BX, 105H			
 	    INT 10H
+
+		MOV AL, PRESSED_ESC
+		CMP AL, 1
+		JE EXIT
+
+		; OTHER PLAYER PRESSED ESC
+		MOV BX, 0
+		MOV AH, 2
+		MOV DX, 1530H
+		INT 10H
+
+		MOV AH, 9
+		LEA DX, QUIT_NOT_BY_YOU
+		INT 21H
 
 EXIT:
 	;Press Enter key to exit
@@ -5219,9 +5284,6 @@ SEND_USERNAME	ENDP
 
 LOAD_USER_NAME  PROC    NEAR
 
-		MOV DX, 03F8H
-		IN AL, DX
-
         LEA DI, HP_BAR_PLAYER1_NAME
         LEA SI, PLAYER1_NAME
 
@@ -6835,6 +6897,7 @@ SET_LEVEL	PROC	NEAR
 		LEA DX, LEVEL2_CHOICE
 		INT 21H
 
+SET_LEVEL_WRONG:
 		MOV AH, 0
 		INT 16H
 
@@ -6848,6 +6911,8 @@ SET_LEVEL	PROC	NEAR
 		JMP SET_LEVEL_END
 
 LEVEL2_PICKED:
+		CMP AL, '2'
+		JNE SET_LEVEL_WRONG
 		MOV AL, 2
 		MOV LEVEL, AL
 
@@ -6937,5 +7002,105 @@ DRAW_TIME_END:
 DRAW_TIME_END_2:
 		RET
 DRAW_TIME	ENDP
+
+INLINE_CHAT_INIT	PROC	NEAR
+
+		MOV BX, 0
+		MOV AH, 2
+		MOV DX, 2930H
+		INT 10H
+
+		MOV AH, 9
+		LEA DX, INGAME_EXIT_MESS
+		INT 21H
+
+		MOV BX, 0
+		MOV AH, 2
+		MOV DX, 2A00H
+		INT 10H
+
+		MOV AH, 9
+		LEA DX, PLAYER1_NAME
+		INT 21H
+
+		MOV AH, 2
+		MOV DL, ':'
+		INT 21H
+
+
+		MOV BX, 0
+		MOV AH, 2
+		MOV DX, 2D00H
+		INT 10H
+
+		MOV AH, 9
+		LEA DX, PLAYER2_NAME
+		INT 21H
+
+		MOV AH, 2
+		MOV DL, ':'
+		INT 21H
+
+		MOV AL, 2BH
+		MOV PLAYER1_INLINE_Y, AL
+
+		MOV AL, 2EH
+		MOV PLAYER2_INLINE_Y, AL
+
+		MOV AL, 0
+		MOV PLAYER1_INLINE_X, AL
+
+		MOV AL, 0
+		MOV PLAYER2_INLINE_X, AL
+
+		MOV AL, ' '
+		MOV CX, 128
+		MOV SI, 0
+INLINE_CHAT_INIT_VARS:
+			LEA BX, PLAYER1_LINE_1
+			MOV [BX][SI], AL
+
+			LEA BX, PLAYER1_LINE_2
+			MOV [BX][SI], AL
+
+			LEA BX, PLAYER2_LINE_1
+			MOV [BX][SI], AL
+
+			LEA BX, PLAYER2_LINE_2
+			MOV [BX][SI], AL
+
+			INC SI
+			LOOP INLINE_CHAT_INIT_VARS
+
+		RET
+INLINE_CHAT_INIT	ENDP
+
+DISPLAY_PLAYER1_ENTRY	PROC	NEAR	; VALUE IS IN -> IN_ASCII
+
+
+
+		RET
+DISPLAY_PLAYER1_ENTRY	ENDP
+
+DISPLAY_PLAYER2_ENTRY	PROC	NEAR	; VALUE IS IN -> RECEIVED_KEY
+
+
+
+		RET
+DISPLAY_PLAYER2_ENTRY	ENDP
+
+CLEAR_UART_BUFFER	PROC	NEAR
+		;Check that Data is Ready
+		mov dx , 3FDH		; Line Status Register
+	in al , dx 
+  		test al , 1
+  		JZ RETURN_TO_MAIN_MENU                                    ;Not Ready
+ ;If Ready read the VALUE in Receive data register
+  		mov dx , 03F8H
+  		in al , dx 
+  		mov PRESSED_KEY , al
+
+		RET
+CLEAR_UART_BUFFER	ENDP
 
 END MAIN
