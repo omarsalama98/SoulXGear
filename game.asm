@@ -166,7 +166,7 @@ DEF						EQU 6
 
 ;START POSITIONS
 START_Y 				EQU 600	;BOTH PLAYERS
-START_X_1 				EQU 150 	;PLAYER1
+START_X_1 				EQU 270 	;PLAYER1
 START_X_2 				EQU 750 ;PLAYER2
 
 ;PUNCH DELAY
@@ -271,11 +271,21 @@ PREV_TIME				DB		   ?
 	p2startx    		DB  0 
 	p2starty    		DB  (WindMid + 1)  
 	WAITING_FOR_USER	DB	'Waiting For Other Player To Enter His/Her Username!$'
+	EXITING				DB	'Other Player Quit The Game!$'
 
 	PRESSED_ESC			DB  0
 	IN_ASCII			DB  ?
 
-	QUIT_NOT_BY_YOU		DB	'Other Player Quit Game!$'
+	QUIT_NOT_BY_YOU		DB	'Other Player Quit Game!        $'
+	WAIT_FOR_LEVEL		DB	'Waiting For Other Player To Pick Level!$'
+	WHAT_TO_DO			DB	 ?
+	; 0 -> NOTHING
+	; 1 -> GAME WITH PLAYER 1 ADMIN
+	; 2 -> GAME WITH PLAYER 2 ADMIN
+	; 3 -> CHAT WITH PLAYER 1 ADMIN
+	; 4 -> CHAT WITH PLAYER 2 ADMIN
+	; 5 -> QUIT BY PLAYER 1
+	; 6 -> QUIT BE PLAYER 2
 ;--------------------------------------------------------------Main Game Data--------------------------------------------------------------------
 
                             ; USER NAME DATA
@@ -285,20 +295,13 @@ USER_NAME_ENTER_MES DB      'Please Enter Your Name:$'
 USER_NAME_ENTER_KEY DB      'Press Enter Key To Continue$'
 LEVEL1_CHOICE		DB		'Press 1 For Level 1$'
 LEVEL2_CHOICE		DB		'Press 2 For Level 2$'
-PLAYER1_INLINE_START		EQU		2B00H
-PLAYER2_INLINE_START		EQU		2E00H
-PLAYER1_LINE_1		DB		128 DUP(' ')
-					DB         '$'
-PLAYER1_LINE_2		DB		128 DUP(' ')
-					DB         '$'
-PLAYER2_LINE_1		DB		128 DUP(' ')
-					DB         '$'
-PLAYER2_LINE_2		DB		128 DUP(' ')
-					DB         '$'
-PLAYER1_INLINE_Y	DB		2BH
-PLAYER2_INLINE_Y	DB		2EH
+PLAYER1_INLINE_START		EQU		2A00H
+PLAYER2_INLINE_START		EQU		2D00H
+PLAYER1_INLINE_Y	DB		2AH
+PLAYER2_INLINE_Y	DB		2DH
 PLAYER1_INLINE_X	DB		0
 PLAYER2_INLINE_X	DB		0
+PLAYER2_INLINE_BOOL	DB		0
 ;-----------------------------------------------------------------------------------------------------------------------------
                             ; MAIN MENU DATA
 MAIN_MENU_START_GAME_COLOR        DB          ?
@@ -306,6 +309,11 @@ MAIN_MENU_CHAT_COLOR              DB          ?
 MAIN_MENU_QUIT_COLOR              DB          ?
 MAIN_MENU_CURRENT_STAT			  DB		  0		; WHICH OPTION HAS FOCUS NOW 0->START GAME, 1->CHAT, 2->QUIT
 ESC_RETURN_TO_MAIN_MENU			  DB		  'Press Esc To Return To Main Menu$'
+INV_GAME						  DB		  'Other Player Invited You To A Game! Press 1 to Accept!                   $'
+INV_CHAT						  DB		  'Other Player Invited You To Chat! Press 2 to Accept!                     $'
+; 0 -> NO ACTION
+; 1 -> YOU SENT GAME INVITE
+; 2 -> YOU SEND CHAT INVITE
 ;------------------------------------------------------------------------------------------------------------------------------
                                 ; HP BAR DATA
 NAMES_DISTANCE          EQU         90
@@ -343,17 +351,49 @@ MAIN PROC NEAR
 
 	CALL LOAD_USER_NAME
 
-	CALL CLEAR_UART_BUFFER
+	MOV AH,2CH    	; To get System Time
+	INT 21H			; Seconds is in DH
+	MOV BL, DH
+
+BEFORE_MAIN_MENU_DELAY:
+		MOV AH,2CH    	; To get System Time
+		INT 21H			; Seconds is in DH
+		CMP BL, DH
+		JE BEFORE_MAIN_MENU_DELAY
 
 RETURN_TO_MAIN_MENU:            ; DISPLAY MAIN MENU
-        CALL MAIN_MENU
 
-        MOV AL, MAIN_MENU_CURRENT_STAT
+		MOV AL, 0
+		MOV WHAT_TO_DO, AL
+
+		; Activate Video mode
+		MOV AX, 4F02H
+		MOV BX, 105H			; FIRST ACTIVATE VIDEO MODE TO CLEAR SCREEN TO DRAW ON CLEAN GROUND
+		INT 10H
+
+		CALL CLEARKEYBOARDBUFFER
+		CALL CLEAR_UART_BUFFER
+
+RETURN_TO_MAIN_MENU_LOOP:
+        CALL MAIN_MENU
+		CALL INVITES_HANDLING
+
+        MOV AL, WHAT_TO_DO
         CMP AL, 0
-        JE START_GAME                 ; CHECK WHICH OPTION USER PICKED
+		JE RETURN_TO_MAIN_MENU_LOOP
         CMP AL, 1
-        JE START_CHAT
-        JMP QUIT_GAME
+        JE START_GAME
+		CMP AL, 2
+		JE START_GAME
+        CMP AL, 3
+		JE START_CHAT
+		CMP AL, 4
+		JE START_CHAT
+		CMP AL, 5
+		JE QUIT_GAME
+		CMP AL, 6
+		JE QUIT_GAME
+		JMP RETURN_TO_MAIN_MENU_LOOP
 
 
 START_CHAT:
@@ -377,6 +417,9 @@ START_CHAT:
 		MOV AL,  (WindMid + 1)
 		MOV p2starty, AL
 
+		CALL CLEARKEYBOARDBUFFER
+		CALL CLEAR_UART_BUFFER
+
         CALL CHAT                ; OPEN CHAT SCREEN AND WHEN DONE RETURN TO MAIN MENU
         JMP RETURN_TO_MAIN_MENU
 
@@ -386,8 +429,42 @@ START_GAME:
 	MOV AL, 0
 	MOV PRESSED_ESC, AL
 
+	MOV AL, WHAT_TO_DO
+	CMP AL, 1
+	JNE WAITING_FOR_USER_2_GAME
+
 	CALL SET_LEVEL
 
+	UART_SEND LEVEL
+
+	JMP ALREADY_SET_UP
+
+WAITING_FOR_USER_2_GAME:
+		MOV AX, 4F02H
+		MOV BX, 105H 
+		INT 10H
+
+		MOV BX, 0
+		MOV AH, 2
+		MOV DX, 1530H
+		INT 10H
+
+		MOV AH, 9
+		LEA DX, WAIT_FOR_LEVEL
+		INT 21H
+
+	;Check that Data is Ready
+		mov dx , 3FDH		; Line Status Register
+	WAITING_FOR_USER_2_GAME_LOOP:	in al , dx 
+  		test al , 1
+  		JZ WAITING_FOR_USER_2_GAME_LOOP                                    ;Not Ready
+ ;If Ready read the VALUE in Receive data register
+  		mov dx , 03F8H
+  		in al , dx 
+  		mov LEVEL , al
+
+
+ALREADY_SET_UP:
     MOV AX, 4F02H
 	MOV BX, 105H 
 	INT 10H
@@ -406,6 +483,7 @@ START_GAME:
 	MOV DMG_BODYSHOT, AX
 	MOV AX, DMG_HEADSHOT_L1
 	MOV DMG_HEADSHOT, AX
+	MOV BX, MAX_HP_LEVEL1
 	JMP MAIN_LEVEL_SET
 
 MAIN_LEVEL2:
@@ -416,8 +494,13 @@ MAIN_LEVEL2:
 	MOV DMG_BODYSHOT, AX
 	MOV AX, DMG_HEADSHOT_L2
 	MOV DMG_HEADSHOT, AX
+	MOV BX, MAX_HP_LEVEL2
 
 MAIN_LEVEL_SET:
+
+	MOV MAX_HP, BX
+	MOV PLAYER1_HP, BX
+	MOV PLAYER2_HP, BX
 
     MOV P1_X, START_X_1
     MOV P1_Y, START_Y
@@ -485,7 +568,10 @@ MAIN_LEVEL_SET:
 	
 
 ;-----------------------------------------------------------------------------MAIN LOOP--------------------------------------------------------------------
-	
+
+	CALL CLEARKEYBOARDBUFFER
+	CALL CLEAR_UART_BUFFER
+
 	CALL INIT_TIME
 
 	MAIN_LOOP: 
@@ -495,12 +581,6 @@ MAIN_LEVEL_SET:
 		MOV AL, TIME
 		CMP AL, 0
 		JE TIME_OUT
-
-		MOV BX, 0
-		MOV AH, 2
-		MOV DX, 0040H
-		INT 10H
-
 
 ;-----------------------------------------------------------------------------REPLACE PLAYER 1--------------------------------------------------------------
 		;REPLACE PLAYERS IF THEY WERE JUMPING
@@ -581,7 +661,23 @@ MAIN_LEVEL_SET:
 		GET_KEY:
 			CALL GET_KEY_PRESSED
 			JNZ CLR_BUFFER				;If zero flag is 1(jz = true) -> nothing is pressed else -> a key is pressed
-			JMP  START_INLINE
+			
+			;Check that Data is Ready
+				mov dx , 3FDH		; Line Status Register
+				in al , dx 
+				test al , 1
+				JZ MAIN_LOOP_END                                    ;Not Ready
+		;If Ready read the VALUE in Receive data register
+				mov dx , 03F8H
+				in al , dx 
+				MOV RECEIVED_KEY, AL
+
+				;IF EMPTY PUT THE VALUE IN TRANSMIT DATA REGISTER
+				MOV DX , 3F8H			; TRANSMIT DATA REGISTER
+				MOV  AL, 1
+				OUT DX , AL
+
+			JMP  CHECK_P2_R
 			;NOW AX = VALUE OF THE KEY
 		CLR_BUFFER:
 			MOV IN_KEY, AH
@@ -596,6 +692,8 @@ MAIN_LEVEL_SET:
 		CHECK_P1_R:
 			CMP IN_KEY, D_KEY
 			JNE CHECK_P1_L
+				UART_SEND A_KEY
+				CALL CONFIRMATION
 				P1_MOV_RIGHT:
 				MOV AX, P2_X
 				SUB AX, PLAYERS_DISTANCE
@@ -610,6 +708,8 @@ MAIN_LEVEL_SET:
 		CHECK_P1_L:		
 			CMP IN_KEY, A_KEY
 			JNE CHECK_P1_DN
+				UART_SEND D_KEY
+				CALL CONFIRMATION
 				P1_MOV_LEFT:
 				CMP P1_X, MAX_LEFT
 				JBE DRAW_P1_AGAIN
@@ -630,6 +730,8 @@ MAIN_LEVEL_SET:
 		CHECK_P1_DN:			
 			CMP IN_KEY, S_KEY
 			JNE CHECK_P1_UP
+				UART_SEND S_KEY
+				CALL CONFIRMATION
 				CMP P1_stance, JMPS
 				JNE CRCH_P1
 					CALL CLR_P1	
@@ -647,6 +749,8 @@ MAIN_LEVEL_SET:
 		CHECK_P1_UP:
 			CMP IN_KEY, W_KEY
 			JNE CHECK_P1_ATCKUP
+			UART_SEND W_KEY
+			CALL CONFIRMATION
 				CMP P1_stance, CRCH
 				JNE P1_JUMP_BEGIN
 				;P1_UP:
@@ -669,6 +773,8 @@ MAIN_LEVEL_SET:
 		CHECK_P1_ATCKUP:
 			CMP IN_KEY, V_KEY
 			JNE CHECK_P1_ATCKFRNT
+				UART_SEND V_KEY
+				CALL CONFIRMATION
 				CMP P1_stance, CRCH		;If the player is crouching or jumping do not attack
 				JE MAIN_LOOP_END
 				CMP P1_stance, JMPS
@@ -688,6 +794,8 @@ MAIN_LEVEL_SET:
 		CHECK_P1_ATCKFRNT:
 			CMP IN_KEY, B_KEY
 			JNE CHECK_P1_ATCKDN
+				UART_SEND B_KEY
+				CALL CONFIRMATION
 				CMP P1_stance, CRCH		;If the player is crouching or jumping do not attack
 				JE MAIN_LOOP_END
 				CMP P1_stance, JMPS
@@ -706,6 +814,8 @@ MAIN_LEVEL_SET:
 		CHECK_P1_ATCKDN:
 			CMP IN_KEY, N_KEY
 			JNE CHECK_P1_DEF
+				UART_SEND N_KEY
+				CALL CONFIRMATION
 				CMP P1_stance, CRCH		;If the player is crouching or jumping do not attack
 				JE MAIN_LOOP_END
 				CMP P1_stance, JMPS
@@ -723,7 +833,9 @@ MAIN_LEVEL_SET:
 										
 		CHECK_P1_DEF:
 			CMP IN_KEY, Q_KEY
-			JNE CHECK_P2_R
+			JNE CHECK_ESC
+				UART_SEND Q_KEY
+				CALL CONFIRMATION
 				CMP P1_stance, CRCH		;If the player is crouching or jumping do not do defense 
 				JE MAIN_LOOP_END
 				CMP P1_stance, JMPS
@@ -739,7 +851,7 @@ MAIN_LEVEL_SET:
 ;---------------------------------------------------------------------------CHECK PLAYER 2 INPUTS----------------------------------------------------------------
 		;Move player 2 right
 		CHECK_P2_R:
-			CMP IN_KEY, RIGHT_KEY
+			CMP RECEIVED_KEY, D_KEY
 			JNE CHECK_P2_L
 				P2_MOV_RIGHT:
 				CMP P2_X, MAX_RIGHT
@@ -756,7 +868,7 @@ MAIN_LEVEL_SET:
 		
 		;MOVE PLAYER 2 LEFT
 		CHECK_P2_L:		
-			CMP IN_KEY, LEFT_KEY
+			CMP RECEIVED_KEY, A_KEY
 			JNE CHECK_P2_DN
 				P2_MOV_LEFT:
 				MOV AX, P1_X
@@ -771,7 +883,7 @@ MAIN_LEVEL_SET:
 
 		;PLAYER 2 CROUCH
 		CHECK_P2_DN:			
-			CMP IN_KEY, DOWN_KEY
+			CMP RECEIVED_KEY, S_KEY
 			JNE CHECK_P2_UP
 				CMP P2_stance, JMPS
 				JNE CRCH_P2
@@ -788,7 +900,7 @@ MAIN_LEVEL_SET:
 				
 		;PLAYER 2 JUMP OR STANDS(IF HE WAS CROUCHING)
 		CHECK_P2_UP:
-			CMP IN_KEY, UP_KEY
+			CMP RECEIVED_KEY, W_KEY
 			JNE CHECK_P2_ATCKUP
 				CMP P2_stance, CRCH
 				JNE P2_JUMP_BEGIN
@@ -813,7 +925,7 @@ MAIN_LEVEL_SET:
 						
 		;PLAYER2 ATTACK UP
 		CHECK_P2_ATCKUP:
-			CMP IN_KEY, I_KEY
+			CMP RECEIVED_KEY, V_KEY
 			JNE CHECK_P2_ATCKFRNT
 				CMP P2_stance, CRCH		;If the player is crouching or jumping do not attack
 				JE MAIN_LOOP_END
@@ -832,7 +944,7 @@ MAIN_LEVEL_SET:
 					
 		;PLAYER2 ATTACK FRONT
 		CHECK_P2_ATCKFRNT:
-			CMP IN_KEY, O_KEY
+			CMP RECEIVED_KEY, B_KEY
 			JNE CHECK_P2_ATCKDN
 				CMP P2_stance, CRCH		;If the player is crouching or jumping do not attack
 				JE MAIN_LOOP_END
@@ -851,7 +963,7 @@ MAIN_LEVEL_SET:
 					
 		;PLAYER2 ATTACK DOWN
 		CHECK_P2_ATCKDN:
-			CMP IN_KEY, P_KEY
+			CMP RECEIVED_KEY, N_KEY
 			JNE CHECK_P2_DEF
 				CMP P2_stance, CRCH		;If the player is crouching or jumping do not attack
 				JE MAIN_LOOP_END
@@ -869,8 +981,8 @@ MAIN_LEVEL_SET:
 					JMP P2_KICK		;GO CHECK FOR COLLISION
 					
 		CHECK_P2_DEF:
-			CMP IN_KEY, L_KEY
-			JNE CHECK_ESC
+			CMP RECEIVED_KEY, Q_KEY
+			JNE INLINE_REC
 				CMP P2_stance, CRCH		;If the player is crouching or jumping do not do defense 
 				JE MAIN_LOOP_END
 				CMP P2_stance, JMPS
@@ -1040,9 +1152,9 @@ MAIN_LEVEL_SET:
 ;--------------------------------------------------------------------------------EXIT-------------------------------------------------------------------
 		CHECK_ESC:                                                                                                                                
 			CMP IN_KEY, ESC_KEY   
-			JNE START_INLINE 
+			JNE INLINE_SEND 
 
-			UART_SEND	1bh	;LET THE ASCII 0 INDICATES TERMINATION
+			UART_SEND	27	;LET THE ASCII 0 INDICATES TERMINATION
 
 			MOV AL, 1
 			MOV PRESSED_ESC, AL 
@@ -1051,17 +1163,15 @@ MAIN_LEVEL_SET:
 ;--------------------------------------------------------------------------------EXIT-------------------------------------------------------------------
 
 ;--------------------------------------------------------------------------------INLINE ENTRY-------------------------------------------------------------------
-START_INLINE:
+INLINE_REC:
 
-		CALL UART_CHECK_KEY_RECEIVED
-		JZ NOT_RECEIVED						;IF THERE IS NO DATA RECEIVED REPEAT AGAIN
-		CALL UART_READ_KEY_RECEIVED		;ELSE: READ THE RECEIVED DATA AND PRINT IT
-			CMP RECEIVED_KEY, 1bh
-			JE EXIT_BY_ESC
+		CMP RECEIVED_KEY, 27
+		JE EXIT_BY_ESC
 
 		CALL DISPLAY_PLAYER2_ENTRY
+		JMP MAIN_LOOP_END
 
-NOT_RECEIVED:                              
+INLINE_SEND:                              
 
 		UART_SEND	IN_ASCII
 
@@ -1269,6 +1379,25 @@ QUIT_GAME:      ; EXIT WITH ERROR LEVEL 0
 	    MOV BX, 105H			
 	    INT 10H
 
+		MOV AL, WHAT_TO_DO
+		CMP AL, 6
+		JNE NOT_ME
+
+		MOV BX, 0
+		MOV AH, 2
+		MOV DX, 1535H
+		INT 10H
+
+		MOV AH, 9
+		LEA DX, EXITING
+		INT 21H
+
+		MOV BX, 0
+		MOV AH, 2
+		MOV DX, 0H
+		INT 10H
+
+NOT_ME:
         MOV AX, 4C00H
         INT 21H
 MAIN ENDP
@@ -5337,19 +5466,6 @@ MAIN_MENU_FOCUS_COLOR             EQU         5
 
 MAIN_MENU    PROC    NEAR
 
-		; Activate Video mode
-		MOV AX, 4F02H
-		MOV BX, 105H			; FIRST ACTIVATE VIDEO MODE TO CLEAR SCREEN TO DRAW ON CLEAN GROUND
-		INT 10H
-
-		; CLEAN INPUT BUFFER SO THAT PREVIOUS ENTER PRESSED IN ENTRY SCREEN DOESN'T AFFECT THIS
-		PUSH ES
-		MOV AX, 0000H
-		MOV ES, AX
-		MOV ES:[041AH], 041EH
-		MOV ES:[041CH], 041EH				; Clears keyboard buffer
-		POP		ES
-
 MAIN_MENU_LOOP:
 
 		CALL ADJUST_FOCUS_COLOR
@@ -5362,9 +5478,11 @@ MAIN_MENU_LOOP:
 
         CALL MAIN_MENU_QUIT
                                     ; SCAN CODE -> AH
-        MOV AH, 0                   ; SCAN CODE ENTER -> 1CH
+        MOV AH, 1                   ; SCAN CODE ENTER -> 1CH
         INT 16H                     ; SCAN CODE DOWN ARROW -> 50H
                                     ; SCAN CODE UP ARROW -> 48H
+		JZ GO_TO_MAIN_PROG
+
         CMP AH, 1CH
         JE ENTER_PRESSED
 
@@ -5374,16 +5492,23 @@ MAIN_MENU_LOOP:
         CMP AH, 48H
         JE UP_PRESSED
 
-        JMP MAIN_MENU_LOOP 
+		CMP AL, '1'
+		JE SEND_GAME_ACC
+
+		CMP AL, '2'
+		JE SEND_CHAT_ACC
+
+        JMP GO_TO_MAIN_PROG 
 
 DOWN_PRESSED:
 		INC MAIN_MENU_CURRENT_STAT
 		MOV AL, MAIN_MENU_CURRENT_STAT
 		CMP AL, 3
-		JNE MAIN_MENU_LOOP
+		JNE GO_TO_MAIN_PROG
 		MOV AL, 0
 		MOV MAIN_MENU_CURRENT_STAT, AL
-		JMP MAIN_MENU_LOOP
+
+		JMP GO_TO_MAIN_PROG
 
 UP_PRESSED:
 		MOV AL, MAIN_MENU_CURRENT_STAT
@@ -5393,9 +5518,38 @@ UP_PRESSED:
 	UP_PRESSED_FLAG:
 		DEC AL
 		MOV MAIN_MENU_CURRENT_STAT, AL
-		JMP MAIN_MENU_LOOP
+
+		JMP GO_TO_MAIN_PROG
+
+SEND_GAME_ACC:
+		UART_SEND 3
+		MOV AL, 2
+		MOV WHAT_TO_DO, AL
+
+		JMP GO_TO_MAIN_PROG
+
+SEND_CHAT_ACC:
+		UART_SEND 4
+		MOV AL, 4
+		MOV WHAT_TO_DO, AL
+
+		JMP GO_TO_MAIN_PROG
 
 ENTER_PRESSED:	; GO TO MAIN PROGRAM AND IT'LL HANDLE THE PROPER ACTION TO TAKE
+		UART_SEND MAIN_MENU_CURRENT_STAT
+		MOV AL, MAIN_MENU_CURRENT_STAT
+		CMP AL, 2
+		JNE GO_TO_MAIN_PROG
+		MOV AL, 5
+		MOV WHAT_TO_DO, AL
+
+GO_TO_MAIN_PROG:
+		PUSH ES
+		MOV AX, 0000H
+		MOV ES, AX
+		MOV ES:[041AH], 041EH
+		MOV ES:[041CH], 041EH				; Clears keyboard buffer
+		POP		ES
 
         RET
 MAIN_MENU    ENDP
@@ -6906,8 +7060,6 @@ SET_LEVEL_WRONG:
 		MOV AL, 1
 		MOV LEVEL, AL
 
-		MOV BX, MAX_HP_LEVEL1
-
 		JMP SET_LEVEL_END
 
 LEVEL2_PICKED:
@@ -6916,12 +7068,7 @@ LEVEL2_PICKED:
 		MOV AL, 2
 		MOV LEVEL, AL
 
-		MOV BX, MAX_HP_LEVEL2
-
 SET_LEVEL_END:
-		MOV MAX_HP, BX
-		MOV PLAYER1_HP, BX
-		MOV PLAYER2_HP, BX
 		RET
 SET_LEVEL	ENDP
 
@@ -7007,7 +7154,7 @@ INLINE_CHAT_INIT	PROC	NEAR
 
 		MOV BX, 0
 		MOV AH, 2
-		MOV DX, 2930H
+		MOV DX, 2F30H
 		INT 10H
 
 		MOV AH, 9
@@ -7016,7 +7163,7 @@ INLINE_CHAT_INIT	PROC	NEAR
 
 		MOV BX, 0
 		MOV AH, 2
-		MOV DX, 2A00H
+		MOV DX, 2900H
 		INT 10H
 
 		MOV AH, 9
@@ -7030,7 +7177,7 @@ INLINE_CHAT_INIT	PROC	NEAR
 
 		MOV BX, 0
 		MOV AH, 2
-		MOV DX, 2D00H
+		MOV DX, 2C00H
 		INT 10H
 
 		MOV AH, 9
@@ -7041,10 +7188,10 @@ INLINE_CHAT_INIT	PROC	NEAR
 		MOV DL, ':'
 		INT 21H
 
-		MOV AL, 2BH
+		MOV AL, 2AH
 		MOV PLAYER1_INLINE_Y, AL
 
-		MOV AL, 2EH
+		MOV AL, 2DH
 		MOV PLAYER2_INLINE_Y, AL
 
 		MOV AL, 0
@@ -7053,38 +7200,218 @@ INLINE_CHAT_INIT	PROC	NEAR
 		MOV AL, 0
 		MOV PLAYER2_INLINE_X, AL
 
-		MOV AL, ' '
-		MOV CX, 128
-		MOV SI, 0
-INLINE_CHAT_INIT_VARS:
-			LEA BX, PLAYER1_LINE_1
-			MOV [BX][SI], AL
-
-			LEA BX, PLAYER1_LINE_2
-			MOV [BX][SI], AL
-
-			LEA BX, PLAYER2_LINE_1
-			MOV [BX][SI], AL
-
-			LEA BX, PLAYER2_LINE_2
-			MOV [BX][SI], AL
-
-			INC SI
-			LOOP INLINE_CHAT_INIT_VARS
+		MOV AL, 0
+		MOV PLAYER2_INLINE_BOOL, AL
 
 		RET
 INLINE_CHAT_INIT	ENDP
 
 DISPLAY_PLAYER1_ENTRY	PROC	NEAR	; VALUE IS IN -> IN_ASCII
 
+		MOV AL, IN_ASCII
+		CMP AL, 'W'
+		JE NO_PRINT1
+		CMP AL, 'w'
+		JE NO_PRINT1
 
+		MOV DI, 0
+		MOV AL, IN_ASCII
+		CMP AL, 13
+		JNE NOT_ENTER1
+		MOV DH, PLAYER1_INLINE_Y
+		INC DH
+		MOV PLAYER1_INLINE_Y, DH
+		JMP NOT_SPECIAL1
+
+NOT_ENTER1:
+		CMP AL, 08H
+		JNE NOT_SPECIAL1
+		MOV DL, PLAYER1_INLINE_X
+		CMP DL, 0
+		JE NO_PRINT1
+		DEC DL
+		MOV PLAYER1_INLINE_X, DL
+		MOV AL, ' '
+		MOV IN_ASCII, AL
+		MOV DI, 1
+
+NOT_SPECIAL1:
+
+		MOV BX, 0
+		MOV AH, 2
+		MOV DH, PLAYER1_INLINE_Y
+		MOV DL, PLAYER1_INLINE_X
+		INT 10H
+
+		CMP DH, 2CH
+		JB START_SHOWING
+
+		MOV BX, 0
+		MOV CL, 128
+		MOV DL, 0
+COPY_SECOND_LINE_1:
+			MOV AH, 2
+			MOV DH, 2BH
+			INT 10H
+
+			MOV AH, 8
+			INT 10H
+
+			DEC DH
+			MOV AH, 2
+			INT 10H
+
+			MOV CH, DL
+
+			MOV AH, 2
+			MOV DL, AL
+			INT 21H
+
+			MOV DL, CH
+
+			INC DL
+			DEC CL
+			JNZ COPY_SECOND_LINE_1
+
+		MOV BX, 0
+		MOV AH, 2
+		MOV DX, 2B00H
+		INT 10H
+
+		MOV AH, 9
+		LEA DX, CLEAR_FIRST_LINE
+		INT 21H
+
+		MOV BX, 0
+		MOV AH, 2
+		MOV DX, 2B00H
+		INT 10H
+
+START_SHOWING:
+
+		MOV AH, 2
+		MOV DL, IN_ASCII
+		INT 21H
+
+		MOV AH, 3H
+		MOV BX, 0
+		INT 10H
+
+		CMP DI, 1
+		JNE NOT_BKSPC1
+		DEC DL
+
+NOT_BKSPC1:
+		MOV PLAYER1_INLINE_Y, DH
+		MOV PLAYER1_INLINE_X, DL
+
+NO_PRINT1:
 
 		RET
 DISPLAY_PLAYER1_ENTRY	ENDP
 
 DISPLAY_PLAYER2_ENTRY	PROC	NEAR	; VALUE IS IN -> RECEIVED_KEY
 
+		MOV AL, RECEIVED_KEY
+		CMP AL, W_KEY
+		JE NO_PRINT2
+		CMP AL, 'W'
+		JE NO_PRINT2
+		CMP AL, 'w'
+		JE NO_PRINT2
 
+		MOV DI, 0
+		MOV AL, RECEIVED_KEY
+		CMP AL, 13
+		JNE NOT_ENTER2
+		MOV DH, PLAYER2_INLINE_Y
+		INC DH
+		MOV PLAYER2_INLINE_Y, DH
+		JMP NOT_SPECIAL2
+
+NOT_ENTER2:
+		CMP AL, 08H
+		JNE NOT_SPECIAL2
+		MOV DL, PLAYER2_INLINE_X
+		CMP DL, 0
+		JE NO_PRINT2
+		DEC DL
+		MOV PLAYER2_INLINE_X, DL
+		MOV AL, ' '
+		MOV RECEIVED_KEY, AL
+		MOV DI, 1
+
+NOT_SPECIAL2:
+
+		MOV BX, 0
+		MOV AH, 2
+		MOV DH, PLAYER2_INLINE_Y
+		MOV DL, PLAYER2_INLINE_X
+		INT 10H
+
+		CMP DH, 2FH
+		JB START_SHOWING2
+
+		MOV BX, 0
+		MOV CL, 128
+		MOV DL, 0
+COPY_SECOND_LINE_2:
+			MOV AH, 2
+			MOV DH, 2EH
+			INT 10H
+
+			MOV AH, 8
+			INT 10H
+
+			DEC DH
+			MOV AH, 2
+			INT 10H
+
+			MOV CH, DL
+
+			MOV AH, 2
+			MOV DL, AL
+			INT 21H
+
+			MOV DL, CH
+
+			INC DL
+			DEC CL
+			JNZ COPY_SECOND_LINE_2
+
+		MOV BX, 0
+		MOV AH, 2
+		MOV DX, 2E00H
+		INT 10H
+
+		MOV AH, 9
+		LEA DX, CLEAR_FIRST_LINE
+		INT 21H
+
+		MOV BX, 0
+		MOV AH, 2
+		MOV DX, 2E00H
+		INT 10H
+
+START_SHOWING2:
+
+		MOV AH, 2
+		MOV DL, RECEIVED_KEY
+		INT 21H
+
+		MOV AH, 3H
+		MOV BX, 0
+		INT 10H
+
+		CMP DI, 1
+		JNE NOT_BKSPC2
+		DEC DL
+
+NOT_BKSPC2:
+		MOV PLAYER2_INLINE_Y, DH
+		MOV PLAYER2_INLINE_X, DL
+
+NO_PRINT2:
 
 		RET
 DISPLAY_PLAYER2_ENTRY	ENDP
@@ -7094,13 +7421,89 @@ CLEAR_UART_BUFFER	PROC	NEAR
 		mov dx , 3FDH		; Line Status Register
 	in al , dx 
   		test al , 1
-  		JZ RETURN_TO_MAIN_MENU                                    ;Not Ready
+  		JZ CLEAR_UART_BUFFER_FLAG                                    ;Not Ready
  ;If Ready read the VALUE in Receive data register
   		mov dx , 03F8H
   		in al , dx 
   		mov PRESSED_KEY , al
 
+		  CLEAR_UART_BUFFER_FLAG:
+
 		RET
 CLEAR_UART_BUFFER	ENDP
+
+INVITES_HANDLING	PROC	NEAR
+
+		;Check that Data is Ready
+		mov dx , 3FDH		; Line Status Register
+	    in al , dx 
+  		test al , 1
+  		JZ INVITES_HANDLING_END                                    ;Not Ready
+ ;If Ready read the VALUE in Receive data register
+  		mov dx , 03F8H
+  		in al , dx 
+
+		CMP AL, 0
+		JNE NOT_GAME_INV
+		
+		MOV BX, 0
+		MOV AH, 2
+		MOV DX, 2C05H
+		INT 10H
+
+		MOV AH, 9
+		LEA DX, INV_GAME
+		INT 21H
+		JMP INVITES_HANDLING_END
+
+NOT_GAME_INV:
+		CMP AL, 1
+		JNE NOT_CHAT_INV
+
+		MOV BX, 0
+		MOV AH, 2
+		MOV DX, 2E05H
+		INT 10H
+
+		MOV AH, 9
+		LEA DX, INV_CHAT
+		INT 21H
+		JMP INVITES_HANDLING_END
+
+NOT_CHAT_INV:
+		CMP AL, 2
+		JNE NOT_QUIT
+		MOV AL, 6
+		MOV WHAT_TO_DO, AL
+		JMP INVITES_HANDLING_END
+
+NOT_QUIT:
+		CMP AL, 3
+		JNE NOT_ACC_GAME
+		MOV AL, 1
+		MOV WHAT_TO_DO, AL
+		JMP INVITES_HANDLING_END
+
+NOT_ACC_GAME:
+		MOV AL, 3
+		MOV WHAT_TO_DO, AL
+
+INVITES_HANDLING_END:
+		RET
+INVITES_HANDLING	ENDP
+
+CONFIRMATION	PROC	NEAR
+
+		;Check that Data is Ready
+		mov dx , 3FDH		; Line Status Register
+	CONFIRMATION_CHK:	in al , dx 
+  		test al , 1
+  		JZ CONFIRMATION_CHK                                    ;Not Ready
+ ;If Ready read the VALUE in Receive data register
+  		mov dx , 03F8H
+  		in al , dx 
+
+		RET
+CONFIRMATION	ENDP
 
 END MAIN
