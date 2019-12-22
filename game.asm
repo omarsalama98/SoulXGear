@@ -267,6 +267,7 @@ PREV_TIME				DB		   ?
 	
 	p1startx   			DB  0 
 	p1starty    		DB  1
+	FIRST_TIME			DB  0
              
 	p2startx    		DB  0 
 	p2starty    		DB  (WindMid + 1)  
@@ -333,6 +334,8 @@ HP_BAR_PLAYER2_NAME        DB          15 DUP (' ')
                            DB          '$'
 PLAYER1_HP                 DW          ?
 PLAYER2_HP                 DW          ?
+PLAYER1_HP_PREV			   DW		   ?
+PLAYER2_HP_PREV			   DW		   ?
 PLAYER1_HEARTS             DW          3
 PLAYER2_HEARTS             DW          3
 GAME_OVER                  DW          0               ; 0->NOT OVER, 1->PLAYER1 WON, 2->PLAYER2 WON
@@ -434,6 +437,7 @@ START_GAME:
 
 	MOV AL, 0
 	MOV PRESSED_ESC, AL
+	MOV FIRST_TIME, AL
 
 	MOV AL, WHAT_TO_DO
 	CMP AL, 1
@@ -550,6 +554,8 @@ MAIN_LEVEL_SET:
     MOV AX, MAX_HP
     MOV PLAYER1_HP, AX
     MOV PLAYER2_HP, AX
+	MOV PLAYER1_HP_PREV, AX
+	MOV PLAYER2_HP_PREV, AX
     MOV AX, 0
     MOV GAME_OVER, AX
 
@@ -560,6 +566,9 @@ MAIN_LEVEL_SET:
     MOV BX, 3
     MOV PLAYER1_HEARTS, BX
     MOV PLAYER2_HEARTS, BX
+
+	CALL DRAW_HP_BAR1
+	CALL DRAW_HP_BAR2
 
     DRAW_P1_HEARTS PLAYER1_HEARTS
 	DRAW_P2_HEARTS PLAYER2_HEARTS
@@ -595,12 +604,48 @@ MAIN_LEVEL_SET:
 
 	MAIN_LOOP: 
 
+		MOV AL, WHAT_TO_DO
+		CMP AL, 1
+		JNE PLAYER2_DRAW_TIME
+
+		MOV AH,2CH    	; To get System Time
+		INT 21H			; Seconds is in DH
+		CMP DH, PREV_TIME
+		JE TIME_NO_DRAW
+
+		MOV PREV_TIME, DH
+		DEC TIME
+
+		UART_SEND 3
+		CALL CONFIRMATION
+		UART_SEND TIME
+
+PLAYER2_DRAW_TIME:
 		CALL DRAW_TIME
+
+		MOV AL, WHAT_TO_DO
+		CMP AL, 1
+		JNE PLAYER2_START_GAME
+
+TIME_NO_DRAW:
 
 		MOV AL, TIME
 		CMP AL, 0
 		JE TIME_OUT
 
+PLAYER2_START_GAME:
+
+		MOV AL, WHAT_TO_DO
+		CMP AL, 2
+		JNE REPLACE_P1
+
+		MOV AL, FIRST_TIME
+		CMP AL, 0
+		JNE USELESS_FLAG
+		UART_SEND TIME
+USELESS_FLAG:
+		MOV AL, 1
+		MOV FIRST_TIME, AL
 ;-----------------------------------------------------------------------------REPLACE PLAYER 1--------------------------------------------------------------
 		;REPLACE PLAYERS IF THEY WERE JUMPING
 		REPLACE_P1:
@@ -692,6 +737,21 @@ MAIN_LEVEL_SET:
 				MOV DX , 3F8H			; TRANSMIT DATA REGISTER
 				MOV  AL, 1
 				OUT DX , AL
+
+				CMP RECEIVED_KEY, 3
+				JE TIME_HANDLING
+
+				CMP RECEIVED_KEY, 200
+				JE PLAYER1_HP_CHANGE
+
+				CMP RECEIVED_KEY, 202
+				JE PLAYER2_HP_CHANGE
+
+				CMP RECEIVED_KEY, 201
+				JE OTHER_PLAYER_LOST
+
+				CMP RECEIVED_KEY, 203
+				JE I_LOST
 
 			JMP  CHECK_P2_R
 			;NOW AX = VALUE OF THE KEY
@@ -1200,9 +1260,93 @@ INLINE_SEND:
 		CALL CONFIRMATION
 
 		CALL DISPLAY_PLAYER1_ENTRY
+
+		JMP MAIN_LOOP_END
+
+TIME_HANDLING:
+		;Check that Data is Ready
+		mov dx , 3FDH		; Line Status Register
+	CHK:	in al , dx 
+  		test al , 1
+  		JZ CHK                                    ;Not Ready
+ ;If Ready read the VALUE in Receive data register
+  		mov dx , 03F8H
+  		in al , dx 
+  		mov TIME , al
+
+		CMP TIME, 0
+		JE TIME_OUT
+		
+		JMP MAIN_LOOP_END
+
+PLAYER1_HP_CHANGE:
+		;Check that Data is Ready
+		mov dx , 3FDH		; Line Status Register
+	CHK_HOSK:	in al , dx 
+  		test al , 1
+  		JZ CHK_HOSK                                    ;Not Ready
+ ;If Ready read the VALUE in Receive data register
+  		mov dx , 03F8H
+  		in al , dx 
+		MOV AH, 0
+  		mov PLAYER2_HP , aX
+
+		  ;IF EMPTY PUT THE VALUE IN TRANSMIT DATA REGISTER
+				MOV DX , 3F8H			; TRANSMIT DATA REGISTER
+				MOV  AL, 1
+				OUT DX , AL
+
+		JMP MAIN_LOOP_END
+
+PLAYER2_HP_CHANGE:
+		;Check that Data is Ready
+		mov dx , 3FDH		; Line Status Register
+	CHK_HOSK2:	in al , dx 
+  		test al , 1
+  		JZ CHK_HOSK2                                    ;Not Ready
+ ;If Ready read the VALUE in Receive data register
+  		mov dx , 03F8H
+  		in al , dx 
+		MOV AH, 0
+  		mov PLAYER1_HP , aX
+
+		  ;IF EMPTY PUT THE VALUE IN TRANSMIT DATA REGISTER
+				MOV DX , 3F8H			; TRANSMIT DATA REGISTER
+				MOV  AL, 1
+				OUT DX , AL
+
+		JMP MAIN_LOOP_END
+
+OTHER_PLAYER_LOST:
+		MOV AX, 0
+		MOV PLAYER2_HP, AX
+		MOV AX, 1
+		MOV GAME_OVER, AX
+		JMP MAIN_LOOP_END
+I_LOST:
+		MOV AX, 0
+        MOV PLAYER1_HP, AX
+        MOV AX, 2
+        MOV GAME_OVER, AX
+		JMP MAIN_LOOP_END
 ;------------------------------------------------------------------------------END MAIN LOOP------------------------------------------------------------
 		MAIN_LOOP_END:	
 			;CALL DELAY
+
+		MOV AX, PLAYER1_HP
+		MOV BX, PLAYER1_HP_PREV
+		CMP AX, BX
+		JE NOT_1_BAD
+		MOV PLAYER1_HP_PREV, AX
+		CALL DRAW_HP_BAR1
+	NOT_1_BAD:
+		MOV AX, PLAYER2_HP
+		MOV BX, PLAYER2_HP_PREV
+		CMP AX, BX
+		JE NOT_2_BAD
+		MOV PLAYER2_HP_PREV, AX
+		CALL DRAW_HP_BAR2
+	NOT_2_BAD:
 
         MOV AX, GAME_OVER
         CMP AX, 0
@@ -1498,6 +1642,10 @@ CLR_P2 ENDP
 
 P1_HEADSHOT     PROC    NEAR
 
+		MOV AL, WHAT_TO_DO
+		CMP AL, 1
+		JNE P1_HEADSHOT_NOT1
+		
         MOV AX, PLAYER1_HP
 
         CMP AX, DMG_HEADSHOT
@@ -1506,19 +1654,30 @@ P1_HEADSHOT     PROC    NEAR
         SUB AX, DMG_HEADSHOT
         MOV PLAYER1_HP, AX
 
-        CALL DRAW_HP_BAR1
+		UART_SEND 200
+		CALL CONFIRMATION
+		MOV BX, PLAYER1_HP
+		UART_SEND BL
+		CALL CONFIRMATION
+
+P1_HEADSHOT_NOT1:
         RET
         PLAYER1_LOST_HEAD:
                 MOV AX, 0
                 MOV PLAYER1_HP, AX
                 MOV AX, 2
                 MOV GAME_OVER, AX
-                CALL DRAW_HP_BAR1
+				UART_SEND 201
+				CALL CONFIRMATION
                 RET
 P1_HEADSHOT     ENDP
 
 
 P1_BODYSHOT     PROC    NEAR
+
+		MOV AL, WHAT_TO_DO
+		CMP AL, 1
+		JNE P1_HEADSHOT_NOT2
 
         MOV AX, PLAYER1_HP
 
@@ -1528,18 +1687,29 @@ P1_BODYSHOT     PROC    NEAR
         SUB AX, DMG_BODYSHOT
         MOV PLAYER1_HP, AX
 
-        CALL DRAW_HP_BAR1
+		UART_SEND 200
+		CALL CONFIRMATION
+		MOV BX, PLAYER1_HP
+		UART_SEND BL
+		CALL CONFIRMATION
+
+P1_HEADSHOT_NOT2:
         RET
         PLAYER1_LOST_BODY:
                 MOV AX, 0
                 MOV PLAYER1_HP, AX
                 MOV AX, 2
                 MOV GAME_OVER, AX
-                CALL DRAW_HP_BAR1
+				UART_SEND 201
+				CALL CONFIRMATION
                 RET
 P1_BODYSHOT     ENDP
 
 P1_LEGSHOT     PROC    NEAR
+
+		MOV AL, WHAT_TO_DO
+		CMP AL, 1
+		JNE P1_HEADSHOT_NOT3
 
         MOV AX, PLAYER1_HP
 
@@ -1549,7 +1719,13 @@ P1_LEGSHOT     PROC    NEAR
         SUB AX, DMG_LEGSHOT
         MOV PLAYER1_HP, AX
 
-        CALL DRAW_HP_BAR1
+		UART_SEND 200
+		CALL CONFIRMATION
+		MOV BX, PLAYER1_HP
+		UART_SEND BL
+		CALL CONFIRMATION
+
+P1_HEADSHOT_NOT3:
         RET
 
         PLAYER1_LOST_LEG:
@@ -1557,7 +1733,8 @@ P1_LEGSHOT     PROC    NEAR
                 MOV PLAYER1_HP, AX
                 MOV AX, 2
                 MOV GAME_OVER, AX
-                CALL DRAW_HP_BAR1
+				UART_SEND 201
+				CALL CONFIRMATION
                 RET
 P1_LEGSHOT     ENDP
 ;-----------------------------------------------------END P1 ATTACKS PROCEDURES-----------------------------------------------------------------
@@ -1567,6 +1744,10 @@ P1_LEGSHOT     ENDP
 
 P2_HEADSHOT     PROC    NEAR
 
+		MOV AL, WHAT_TO_DO
+		CMP AL, 1
+		JNE P2_HEADSHOT_NOT1
+
         MOV AX, PLAYER2_HP
 
         CMP AX, DMG_HEADSHOT
@@ -1575,19 +1756,30 @@ P2_HEADSHOT     PROC    NEAR
         SUB AX, DMG_HEADSHOT
         MOV PLAYER2_HP, AX
 
-        CALL DRAW_HP_BAR2
+		UART_SEND 202
+		CALL CONFIRMATION
+		MOV BX, PLAYER2_HP
+		UART_SEND BL
+		CALL CONFIRMATION
+
+P2_HEADSHOT_NOT1:
         RET
         PLAYER2_LOST_HEAD:
                 MOV AX, 0
                 MOV PLAYER2_HP, AX
                 MOV AX, 1
                 MOV GAME_OVER, AX
-                CALL DRAW_HP_BAR2
+				UART_SEND 203
+				CALL CONFIRMATION
                 RET
 P2_HEADSHOT     ENDP
 
 
 P2_BODYSHOT     PROC    NEAR
+
+		MOV AL, WHAT_TO_DO
+		CMP AL, 1
+		JNE P2_HEADSHOT_NOT2
 
         MOV AX, PLAYER2_HP
 
@@ -1597,18 +1789,29 @@ P2_BODYSHOT     PROC    NEAR
         SUB AX, DMG_BODYSHOT
         MOV PLAYER2_HP, AX
 
-        CALL DRAW_HP_BAR2
+		UART_SEND 202
+		CALL CONFIRMATION
+		MOV BX, PLAYER2_HP
+		UART_SEND BL
+		CALL CONFIRMATION
+
+P2_HEADSHOT_NOT2:
         RET
         PLAYER2_LOST_BODY:
                 MOV AX, 0
                 MOV PLAYER2_HP, AX
                 MOV AX, 1
                 MOV GAME_OVER, AX
-                CALL DRAW_HP_BAR2
+				UART_SEND 203
+				CALL CONFIRMATION
                 RET
 P2_BODYSHOT     ENDP
 
 P2_LEGSHOT     PROC    NEAR
+
+		MOV AL, WHAT_TO_DO
+		CMP AL, 1
+		JNE P2_HEADSHOT_NOT3
 
         MOV AX, PLAYER2_HP
 
@@ -1618,14 +1821,21 @@ P2_LEGSHOT     PROC    NEAR
         SUB AX, DMG_LEGSHOT
         MOV PLAYER2_HP, AX
 
-        CALL DRAW_HP_BAR2
+		UART_SEND 202
+		CALL CONFIRMATION
+		MOV BX, PLAYER2_HP
+		UART_SEND BL
+		CALL CONFIRMATION
+
+P2_HEADSHOT_NOT3:
         RET
         PLAYER2_LOST_LEG:
                 MOV AX, 0
                 MOV PLAYER2_HP, AX
                 MOV AX, 1
                 MOV GAME_OVER, AX
-                CALL DRAW_HP_BAR2
+				UART_SEND 203
+				CALL CONFIRMATION
                 RET
 P2_LEGSHOT     ENDP
 
@@ -7163,14 +7373,6 @@ INIT_TIME_END:
 INIT_TIME	ENDP
 
 DRAW_TIME	PROC	NEAR
-
-		MOV AH,2CH    	; To get System Time
-		INT 21H			; Seconds is in DH
-		CMP DH, PREV_TIME
-		JE DRAW_TIME_END_2
-
-		MOV PREV_TIME, DH
-		DEC TIME
 
 		MOV BX, 0
 		MOV AH, 2
