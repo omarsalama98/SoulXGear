@@ -313,7 +313,10 @@ MAIN_MENU_CURRENT_STAT			  DB		  0		; WHICH OPTION HAS FOCUS NOW 0->START GAME, 
 ESC_RETURN_TO_MAIN_MENU			  DB		  'Press Esc To Return To Main Menu$'
 INV_GAME						  DB		  'Other Player Invited You To A Game! Press 1 to Accept!                   $'
 INV_CHAT						  DB		  'Other Player Invited You To Chat! Press 2 to Accept!                     $'
-GAME_CONTROLS					  DB		  'Game Controls: Up -> Jump, Down -> Crouch, Right -> Move Right, Left -> Move Left, (Keypad)/ -> Headshot, (Keypad)* -> Bodyshot (Keypad)- -> Legshot, (Keypad)+ -> Block$'
+GAME_CONTROLS					  DB		  'Game Controls: Up -> Jump, Down -> Crouch, Right -> Move Right,'
+								  DB		  ' Left -> Move Left, (Keypad)/ -> Headshot, (Keypad)* -> Bodyshot'
+								  DB		  ' (Keypad)- -> Legshot, (Keypad)+ -> Block$'
+								  
 ; 0 -> NO ACTION
 ; 1 -> YOU SENT GAME INVITE
 ; 2 -> YOU SEND CHAT INVITE
@@ -5510,7 +5513,12 @@ MAIN_MENU_LOOP:
                                     ; SCAN CODE UP ARROW -> 48H
 		JZ GO_TO_MAIN_PROG
 
+		CMP AH, 01H
+		JE ESC_PRESSED
+
         CMP AH, 1CH
+		JE ENTER_PRESSED
+		CMP AH, 39H
         JE ENTER_PRESSED
 
         CMP AH, 50H
@@ -5526,6 +5534,11 @@ MAIN_MENU_LOOP:
 		JE SEND_CHAT_ACC
 
         JMP GO_TO_MAIN_PROG 
+
+ESC_PRESSED:
+		MOV AL, 2
+		MOV MAIN_MENU_CURRENT_STAT, AL
+		JMP ENTER_PRESSED
 
 DOWN_PRESSED:
 		INC MAIN_MENU_CURRENT_STAT
